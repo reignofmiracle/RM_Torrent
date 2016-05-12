@@ -4,21 +4,21 @@ import struct
 
 from TorrentPython.Bencode import *
 
-INITIAL_NODE_HOST = 'router.utorrent.com'
-INITIAL_NODE_PORT = 6881
-INITIAL_NODE_ADDR = (socket.gethostbyname(INITIAL_NODE_HOST), INITIAL_NODE_PORT)
-
-TIMEOUT_SEC = 15 # sec
-
-COMPACT_IP_PORT_INFO_LENGTH = 6  # byte
-COMPACT_NODE_INFO_LENGTH = 26  # byte
-
 
 class DHTService(object):
 
+    INITIAL_NODE_HOST = 'router.utorrent.com'
+    INITIAL_NODE_PORT = 6881
+    INITIAL_NODE_ADDR = (socket.gethostbyname(INITIAL_NODE_HOST), INITIAL_NODE_PORT)
+
+    TIMEOUT_SEC = 15 # sec
+
+    COMPACT_IP_PORT_INFO_LENGTH = 6  # byte
+    COMPACT_NODE_INFO_LENGTH = 26  # byte
+
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.settimeout(TIMEOUT_SEC)
+        self.sock.settimeout(DHTService.TIMEOUT_SEC)
         pass
 
     def __del__(self):
@@ -87,13 +87,13 @@ class DHTService(object):
             return None
 
         source = response[b'r'][b'values']
-        if len(source) % COMPACT_IP_PORT_INFO_LENGTH is not 0:
+        if len(source) % DHTService.COMPACT_IP_PORT_INFO_LENGTH is not 0:
             print("Peers error.")
             return None
 
         peers = []
-        for idx in range(0, len(source), COMPACT_IP_PORT_INFO_LENGTH):
-            sample = source[idx:idx + COMPACT_IP_PORT_INFO_LENGTH]
+        for idx in range(0, len(source), DHTService.COMPACT_IP_PORT_INFO_LENGTH):
+            sample = source[idx:idx + DHTService.COMPACT_IP_PORT_INFO_LENGTH]
             peers.append((sample[:4], sample[4:4 + 2]))
 
         return peers
@@ -104,13 +104,13 @@ class DHTService(object):
             return None
 
         source = response[b'r'][b'nodes']
-        if len(source) % COMPACT_NODE_INFO_LENGTH is not 0:
+        if len(source) % DHTService.COMPACT_NODE_INFO_LENGTH is not 0:
             print("Nodes error.")
             return None
 
         nodes = []
-        for idx in range(0, len(source), COMPACT_NODE_INFO_LENGTH):
-            sample = source[idx:idx + COMPACT_NODE_INFO_LENGTH]
+        for idx in range(0, len(source), DHTService.COMPACT_NODE_INFO_LENGTH):
+            sample = source[idx:idx + DHTService.COMPACT_NODE_INFO_LENGTH]
             nodes.append((sample[:20], socket.inet_ntoa(sample[20:20 + 4]), struct.unpack('>H', sample[24:24 + 2])[0]))
 
         return nodes
