@@ -3,13 +3,13 @@ from collections import OrderedDict
 
 class Bencode(object):
     @staticmethod
-    def decode(source):
+    def decode(source: bytes):
         func = Bencode.getDecoder(source, 0)
         ret, npos = func(source, 0)
         return ret
 
     @staticmethod
-    def decode_d(source, spos):
+    def decode_d(source: bytes, spos):
         if source[spos] != ord('d'):
             return None
 
@@ -25,7 +25,7 @@ class Bencode(object):
         return retDict, npos + 1
 
     @staticmethod
-    def decode_l(source, spos):
+    def decode_l(source: bytes, spos):
         if source[spos] != ord('l'):
             return None
 
@@ -39,7 +39,7 @@ class Bencode(object):
         return retList, npos + 1
 
     @staticmethod
-    def decode_i(source, spos):
+    def decode_i(source: bytes, spos):
         if source[spos] != ord('i'):
             return None
 
@@ -50,7 +50,7 @@ class Bencode(object):
         return int(source[spos + 1:epos]), epos + 1
 
     @staticmethod
-    def decode_s(source, spos):
+    def decode_s(source: bytes, spos):
         epos = spos
         while spos < len(source) and source[epos] != ord(':'):
             epos += 1
@@ -61,7 +61,7 @@ class Bencode(object):
         return source[npos:npos + strLen], npos + strLen
 
     @staticmethod
-    def getDecoder(source, spos):        
+    def getDecoder(source: bytes, spos):
         if source[spos] == ord('d'): # dictionary
             return Bencode.decode_d
                
@@ -75,25 +75,21 @@ class Bencode(object):
             return Bencode.decode_s
 
     @staticmethod
-    def getBencode_Info(source):
+    def getBencode_Info(source: bytes):
         spos = source.find(b'4:infod') + 6
         ret, npos = Bencode.decode_d(source, spos)
         return source[spos:npos]
 
     @staticmethod
-    def encode(source):
+    def encode(source: dict):
         func = Bencode.getEncoder(source)
         return func(source)
 
     @staticmethod
-    def encode_d(source):
-        if type(source) != dict:
-            print("encode_d : type error")
-            return None
-
-        source = OrderedDict(source)
+    def encode_d(source: dict):
         retBytes = b'd'
-        for k, v in source.items():
+        for k in sorted(source):
+            v = source[k]
             func = Bencode.getEncoder(k)
             retBytes += func(k)
             func = Bencode.getEncoder(v)
@@ -104,11 +100,7 @@ class Bencode(object):
         return retBytes
 
     @staticmethod
-    def encode_l(source):
-        if type(source) != list:
-            print("encode_l : type error")
-            return None
-
+    def encode_l(source: list):
         retBytes = b'l'
         for item in source:
             func = Bencode.getEncoder(item)
@@ -120,19 +112,11 @@ class Bencode(object):
         return retBytes
 
     @staticmethod
-    def encode_i(source):
-        if type(source) != int:
-            print("encode_i : type error")
-            return None
-
+    def encode_i(source: int):
         return b'i' + str(source).encode() + b'e'
 
     @staticmethod
-    def encode_s(source):
-        if type(source) != bytes:
-            print("encode_s : type error")
-            return None
-
+    def encode_s(source: bytes):
         tLen = len(source)
         return str(tLen).encode() + b':' + source
 

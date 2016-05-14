@@ -19,6 +19,7 @@ class DHTServiceTest(unittest.TestCase):
         ret = testObj.ping(DHTService.INITIAL_NODE_ADDR)
         self.assertIsNotNone(ret)
         self.assertFalse(DHTService.isResponseError(ret))
+        # print(ret[b'r'][b'id'])
         pass
 
     # @unittest.skip("wait")
@@ -38,10 +39,10 @@ class DHTServiceTest(unittest.TestCase):
 
         if DHTService.isResponseNodes(ret):
             ret = DHTService.parseNodes(ret)
-            print(ret)
+            # print(ret)
         else:
             ret = DHTService.parsePeers(ret)
-            print(ret)
+            # print(ret)
         pass
 
 if __name__ == '__main__':

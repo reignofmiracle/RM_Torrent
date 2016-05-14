@@ -7,9 +7,10 @@ from TorrentPython.Bencode import *
 
 class DHTService(object):
 
-    INITIAL_NODE_HOST = 'router.utorrent.com'
+    INITIAL_NODE_ID = b'\xeb\xff6isQ\xffJ\xec)\xcd\xba\xab\xf2\xfb\xe3F|\xc2g'
+    INITIAL_NODE_IP = '82.221.103.244' #'router.utorrent.com',
     INITIAL_NODE_PORT = 6881
-    INITIAL_NODE_ADDR = (socket.gethostbyname(INITIAL_NODE_HOST), INITIAL_NODE_PORT)
+    INITIAL_NODE_ADDR = (socket.gethostbyname(INITIAL_NODE_IP), INITIAL_NODE_PORT)
 
     TIMEOUT_SEC = 15 # sec
 
@@ -30,6 +31,9 @@ class DHTService(object):
         return self.request(addr, query)
 
     def findNode(self, addr, target):
+        if len(target) is not 20:
+            return None
+
         rid = DHTService.getID()
         query = {b't': b'aa', b'y': b'q', b'q': b'find_node', b'a': {b'id': rid, b'target': target}}
         return self.request(addr, query)
@@ -61,57 +65,39 @@ class DHTService(object):
         return bytes(random.randint(0, 255) for _ in range(20))
 
     @staticmethod
-    def isResponseError(response):
-        if type(response) is not dict:
-            return False
-
+    def isResponseError(response: dict):
         return b'e' in response
 
     @staticmethod
-    def isResponseNodes(response):
-        if type(response) is not dict:
-            return False
-
+    def isResponseNodes(response: dict):
         return b'r' in response and b'nodes' in response[b'r']
 
     @staticmethod
-    def isResponsePeers(response):
-        if type(response) is not dict:
-            return False
-
+    def isResponsePeers(response: dict):
         return b'r' in response and b'values' in response[b'r']
 
     @staticmethod
-    def parsePeers(response):
+    def parsePeers(response: dict):
         if not DHTService.isResponsePeers(response):
-            return None
+            return []
 
         source = response[b'r'][b'values']
-        if len(source) % DHTService.COMPACT_IP_PORT_INFO_LENGTH is not 0:
-            print("Peers error.")
-            return None
-
         peers = []
-        for idx in range(0, len(source), DHTService.COMPACT_IP_PORT_INFO_LENGTH):
-            sample = source[idx:idx + DHTService.COMPACT_IP_PORT_INFO_LENGTH]
-            peers.append((sample[:4], sample[4:4 + 2]))
+        for sample in source:
+            peers.append((socket.inet_ntoa(sample[:4]), struct.unpack('>H', sample[4:4 + 2])[0]))
 
         return peers
 
     @staticmethod
-    def parseNodes(response):
+    def parseNodes(response: dict):
         if not DHTService.isResponseNodes(response):
-            return None
+            return {}
 
         source = response[b'r'][b'nodes']
-        if len(source) % DHTService.COMPACT_NODE_INFO_LENGTH is not 0:
-            print("Nodes error.")
-            return None
-
-        nodes = []
+        nodes = {}
         for idx in range(0, len(source), DHTService.COMPACT_NODE_INFO_LENGTH):
             sample = source[idx:idx + DHTService.COMPACT_NODE_INFO_LENGTH]
-            nodes.append((sample[:20], socket.inet_ntoa(sample[20:20 + 4]), struct.unpack('>H', sample[24:24 + 2])[0]))
+            nodes[sample[:20]] = (socket.inet_ntoa(sample[20:20 + 4]), struct.unpack('>H', sample[24:24 + 2])[0])
 
         return nodes
 

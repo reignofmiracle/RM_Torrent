@@ -4,8 +4,10 @@
       <w>addr</w>
       <w>bencode</w>
       <w>bencoded</w>
+      <w>epos</w>
       <w>npos</w>
       <w>recv</w>
+      <w>spos</w>
     </words>
   </dictionary>
 </component>
