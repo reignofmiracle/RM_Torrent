@@ -1,18 +1,14 @@
-import random
 import socket
 import struct
 
 from TorrentPython.Bencode import *
+from TorrentPython.TorrentUtils import *
 
 
 class DHTService(object):
 
-    INITIAL_NODE_ID = b'\xeb\xff6isQ\xffJ\xec)\xcd\xba\xab\xf2\xfb\xe3F|\xc2g'
-    INITIAL_NODE_IP = '82.221.103.244' #'router.utorrent.com',
-    INITIAL_NODE_PORT = 6881
-    INITIAL_NODE_ADDR = (socket.gethostbyname(INITIAL_NODE_IP), INITIAL_NODE_PORT)
-
-    TIMEOUT_SEC = 15 # sec
+    TIMEOUT_SEC = 0.5
+    # TIMEOUT_SEC = 15 # sec
 
     COMPACT_IP_PORT_INFO_LENGTH = 6  # byte
     COMPACT_NODE_INFO_LENGTH = 26  # byte
@@ -26,7 +22,7 @@ class DHTService(object):
         self.sock.close()
 
     def ping(self, addr):
-        rid = DHTService.getID()
+        rid = TorrentUtils.getPeerID()
         query = {b't': b'aa', b'y': b'q', b'q': b'ping', b'a': {b'id': rid}}
         return self.request(addr, query)
 
@@ -34,7 +30,7 @@ class DHTService(object):
         if len(target) is not 20:
             return None
 
-        rid = DHTService.getID()
+        rid = TorrentUtils.getPeerID()
         query = {b't': b'aa', b'y': b'q', b'q': b'find_node', b'a': {b'id': rid, b'target': target}}
         return self.request(addr, query)
 
@@ -42,7 +38,7 @@ class DHTService(object):
         if len(info_hash) is not 20:
             return None
 
-        rid = DHTService.getID()
+        rid = TorrentUtils.getPeerID()
         query = {b't': b'aa', b'y': b'q', b'q': b'get_peers', b'a': {b'id': rid, b'info_hash': info_hash}}
         return self.request(addr, query)
 
@@ -59,10 +55,6 @@ class DHTService(object):
             return None
 
         return Bencode.decode(recv)
-
-    @staticmethod
-    def getID():
-        return bytes(random.randint(0, 255) for _ in range(20))
 
     @staticmethod
     def isResponseError(response: dict):

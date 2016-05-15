@@ -6,10 +6,13 @@ from TorrentPython.DHTService import *
 
 class DHTExplorer(object):
 
-    NODE_EXPANSION_SIZE = 10
+    INITIAL_ROUTING_TABLE = {b'\xeb\xff6isQ\xffJ\xec)\xcd\xba\xab\xf2\xfb\xe3F|\xc2g': ('82.221.103.244', 6881),
+                             b'2\xf5NisQ\xffJ\xec)\xcd\xba\xab\xf2\xfb\xe3F|\xc2g': ('67.215.246.10', 6881)}
+
+    NODE_EXPANSION_SIZE = 7
 
     @staticmethod
-    def findPeers(service: DHTService, routingTable: dict, info_hash: bytes, peerLimit=5, timeLimit=5):
+    def findPeers(service: DHTService, routingTable: dict, info_hash: bytes, peerLimit=5, timeLimit=0):
         if service is None or routingTable is None or info_hash is None:
             return [], routingTable
 
@@ -44,7 +47,8 @@ class DHTExplorer(object):
         peers = []
         updatedRoutingTable = {}
 
-        for k, v in routingTable.items():
+        for k in sorted(routingTable):
+            v = routingTable[k]
             response = service.getPeers((socket.gethostbyname(v[0]), v[1]), info_hash)
             if response is None or DHTService.isResponseError(response):
                 continue

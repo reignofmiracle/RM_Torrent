@@ -6,6 +6,8 @@
       <w>bencoded</w>
       <w>epos</w>
       <w>npos</w>
+      <w>pstr</w>
+      <w>pstrlen</w>
       <w>recv</w>
       <w>spos</w>
     </words>
