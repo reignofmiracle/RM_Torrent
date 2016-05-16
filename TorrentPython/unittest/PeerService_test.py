@@ -7,7 +7,7 @@ FIRST_PIECE_HASH = b'\x11\x12\xac\x17\x04\xe6JS\x8a\x81\x9a\xa9\x05!m\xf7\x1drpk
 PIECE_LENGTH = 524288
 TOTAL_LENGTH = 686817280
 
-SAMPLE_PEER = ('78.242.206.136', 6136)
+SAMPLE_PEER = ('61.228.251.189', 11494)
 
 
 class PeerServiceTest(unittest.TestCase):

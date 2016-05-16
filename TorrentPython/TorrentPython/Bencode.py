@@ -1,6 +1,3 @@
-from collections import OrderedDict
-
-
 class Bencode(object):
     @staticmethod
     def decode(source: bytes):

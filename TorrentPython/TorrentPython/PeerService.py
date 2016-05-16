@@ -6,7 +6,7 @@ from TorrentPython.PeerProtocol import *
 
 class PeerService(object):
 
-    SOCKET_TIMEOUT = 5  # sec
+    SOCKET_TIMEOUT = 3  # sec
 
     def __init__(self, peerInfo, info_hash: bytes):
         self.my_id = TorrentUtils.getPeerID()
@@ -28,7 +28,7 @@ class PeerService(object):
 
         try:
             self.sock.connect(self.peerInfo)
-        except socket.ConnectionRefusedError:
+        except:
             return None
 
         msg = PeerProtocol.getHandShakeMsg(self.my_id, self.info_hash)
@@ -56,7 +56,7 @@ class PeerService(object):
     def sendMsg(sock: socket.socket, msg: bytes):
         try:
             sock.send(msg)
-        except socket.timeout:
+        except:
             return False
         return True
 
@@ -64,7 +64,7 @@ class PeerService(object):
     def recvMsg(sock: socket.socket, length):
         try:
             return sock.recv(length)
-        except socket.timeout:
+        except:
             return b''
 
 

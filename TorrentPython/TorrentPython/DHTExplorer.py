@@ -22,29 +22,29 @@ class DHTExplorer(object):
         peerLimitChecker = DHTExplorer.generatePeerLimitChecker(peerLimit)
         timeLimitChecker = DHTExplorer.generateTimeLimitChecker(timeLimit)
 
-        peers = []
+        peers = set()
         while len(workingTable) > 0 and not peerLimitChecker(len(peers)):
             retPeers, workingTable = DHTExplorer.findPeersFromRoutingTable(
                 service, workingTable, info_hash, peerLimitChecker, timeLimitChecker)
-            peers.extend(retPeers)
+            peers |= retPeers
 
             updatedRoutingTable = DHTExplorer.updateRoutingTable(updatedRoutingTable, workingTable, info_hash)
 
             if timeLimitChecker():
                 break
 
-        return peers, updatedRoutingTable
+        return list(peers), updatedRoutingTable
 
     @staticmethod
     def findPeersFromRoutingTable(service: DHTService, routingTable: dict, info_hash: bytes,
                                   peerLimitChecker: types.FunctionType, timeLimitChecker: types.FunctionType):
         if service is None or routingTable is None or info_hash is None:
-            return [], routingTable
+            return set(), routingTable
 
         if peerLimitChecker is None or timeLimitChecker is None:
-            return [], routingTable
+            return set(), routingTable
 
-        peers = []
+        peers = set()
         updatedRoutingTable = {}
 
         for k in sorted(routingTable):
@@ -54,7 +54,7 @@ class DHTExplorer(object):
                 continue
 
             if DHTService.isResponsePeers(response):
-                peers.extend(DHTService.parsePeers(response))
+                peers = peers.union(DHTService.parsePeers(response))
                 if peerLimitChecker(len(peers)):
                     break
             else:

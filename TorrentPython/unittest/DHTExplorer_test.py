@@ -28,12 +28,16 @@ class DHTExplorerTest(unittest.TestCase):
         pass
 
     @unittest.skip("clear")
-    def findPeersFromRoutingTable(self):
+    def test_findPeersFromRoutingTable(self):
         service = DHTService()
-        peers, routingTable = DHTExplorer.findPeersFromRoutingTable(service, self.routingTable, INFO_HASH)
+        peers, routingTable = DHTExplorer.findPeersFromRoutingTable(
+            service, self.routingTable, INFO_HASH,
+            DHTExplorer.generatePeerLimitChecker(20),
+            DHTExplorer.generateTimeLimitChecker(0))
+
         self.assertTrue(len(routingTable) > 0)
-        print(peers)
-        print(routingTable)
+        print('peers : ', peers)
+        print('routingTable : ', routingTable)
 
 if __name__ == '__main__':
     unittest.main()
