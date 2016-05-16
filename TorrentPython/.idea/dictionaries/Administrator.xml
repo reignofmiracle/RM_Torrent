@@ -9,7 +9,9 @@
       <w>pstr</w>
       <w>pstrlen</w>
       <w>recv</w>
+      <w>shaked</w>
       <w>spos</w>
+      <w>unchock</w>
     </words>
   </dictionary>
 </component>
