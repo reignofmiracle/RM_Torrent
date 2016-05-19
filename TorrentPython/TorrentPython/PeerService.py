@@ -41,6 +41,10 @@ class PeerService(object):
 
         return ret
 
+    def interested(self):
+        msg = PeerProtocol.getInterested()
+        return PeerService.sendMsg(self.sock, msg)
+
     def keepAlive(self):
         msg = PeerProtocol.getKeepAliveMsg()
         return PeerService.sendMsg(self.sock, msg)

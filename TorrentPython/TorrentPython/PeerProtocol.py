@@ -27,6 +27,12 @@ class PeerProtocol(object):
         return pstrlen + pstr + reserved + info_hash + peer_id
 
     @staticmethod
+    def getInterested():
+        lengthPrefix = struct.pack('>L', 1)
+        msgID = struct.pack('>B', PeerProtocol.MessageID.INTERESTED.value)
+        return lengthPrefix + msgID
+
+    @staticmethod
     def getKeepAliveMsg():
         lengthPrefix = struct.pack('>L', 0)
         return lengthPrefix
