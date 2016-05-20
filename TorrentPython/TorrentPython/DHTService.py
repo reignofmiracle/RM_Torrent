@@ -76,7 +76,7 @@ class DHTService(object):
         source = response[b'r'][b'values']
         peers = []
         for sample in source:
-            peers.append((socket.inet_ntoa(sample[:4]), struct.unpack('>H', sample[4:4 + 2])[0]))
+            peers.append((socket.inet_ntoa(sample[:4]), struct.unpack('!H', sample[4:4 + 2])[0]))
 
         return peers
 
@@ -89,7 +89,7 @@ class DHTService(object):
         nodes = {}
         for idx in range(0, len(source), DHTService.COMPACT_NODE_INFO_LENGTH):
             sample = source[idx:idx + DHTService.COMPACT_NODE_INFO_LENGTH]
-            nodes[sample[:20]] = (socket.inet_ntoa(sample[20:20 + 4]), struct.unpack('>H', sample[24:24 + 2])[0])
+            nodes[sample[:20]] = (socket.inet_ntoa(sample[20:20 + 4]), struct.unpack('!H', sample[24:24 + 2])[0])
 
         return nodes
 

@@ -10,13 +10,13 @@ class Connecting(object):
         self.transaction_id = transaction_id
 
     def getPacket(self):
-        return struct.pack('>QLL', self.connection_id, self.action, self.transaction_id)
+        return struct.pack('!QII', self.connection_id, self.action, self.transaction_id)
 
 
 class ConnectingResponse(object):
     def __init__(self, response):
         self.action, self.transaction_id, self.connection_id = \
-                     struct.unpack('>LLQ', response)[0]
+                     struct.unpack('!IIQ', response)[0]
         
         
 

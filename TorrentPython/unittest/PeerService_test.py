@@ -1,4 +1,5 @@
 import unittest
+import time
 
 from TorrentPython.PeerService import *
 
@@ -9,47 +10,61 @@ PIECE_LENGTH = 524288
 TOTAL_LENGTH = 686817280
 BUFFER_LENGTH = pow(2, 15)
 
-SAMPLE_PEER = ('177.15.130.226', 23850)
+SAMPLE_PEER = ('127.0.0.1', 57834)
 
 
 class PeerServiceTest(unittest.TestCase):
     def setUp(self):
-        # DHTService.TIMEOUT_SEC = 0.5 # sec
+        # DHTService.TIMEOUT_SEC = 0.5 # secs
         # service = DHTService()
         # peers, routingTable = DHTExplorer.findPeers(service, self.routingTable, INFO_HASH)
         # self.assertTrue(len(peers) > 0)
         self.peer = SAMPLE_PEER
         pass
 
-        self.testObj = PeerService(self.peer, INFO_HASH)
-        ret = self.testObj.handShake()
-        self.assertTrue(ret)
-
-        ret = self.testObj.interested()
-        self.assertTrue(ret)
+        # self.testObj = PeerService(self.peer, INFO_HASH)
+        # ret = self.testObj.handShake()
+        # self.assertTrue(ret)
+        #
+        # ret = self.testObj.interested()
+        # self.assertTrue(ret)
 
     def tearDown(self):
         pass
+
+    # @unittest.skip("clear")
+    def test_downloadSequence(self):
+        testObj = PeerService(self.peer, INFO_HASH)
+        self.assertTrue(testObj.handShake())
+
+
+        # for i in range(1, 10):
+        #     testObj.request(i, 0, BLOCK_LENGTH)
+        #     time.sleep(10)
+        #     print(testObj.recv(BLOCK_LENGTH))
+
+
+        del testObj
 
     @unittest.skip("clear")
     def test_handShake(self):
         testObj = PeerService(self.peer, INFO_HASH)
         ret = testObj.handShake()
         self.assertTrue(ret)
-        pass
+        del testObj
 
-    @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_keepAlive(self):
         ret = self.testObj.keepAlive()
         self.assertTrue(ret)
         pass
 
-    @unittest.skip("???")
+    @unittest.skip("clear")
     def test_interested(self):
         ret = self.testObj.interested()
         self.assertTrue(ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("wait")
     def test_request(self):
         blockIndex = 0
         for offset in range(0, PIECE_LENGTH, BLOCK_LENGTH):

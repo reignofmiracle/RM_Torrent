@@ -1,8 +1,9 @@
-import random
+import os
 
 
 class TorrentUtils(object):
 
     @staticmethod
     def getPeerID():
-        return bytes(random.randint(0, 255) for _ in range(20))
+        clientID = b'-RM0100-'
+        return clientID + os.urandom(20 - len(clientID))
