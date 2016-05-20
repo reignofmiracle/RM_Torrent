@@ -37,6 +37,10 @@ class PeerServiceTest(unittest.TestCase):
         testObj = PeerService(self.peer, INFO_HASH)
         self.assertTrue(testObj.handShake())
 
+        testObj.interested()
+        testObj.request(0, 0, 2 ** 14)
+        print(testObj.recv(1024))
+
 
         # for i in range(1, 10):
         #     testObj.request(i, 0, BLOCK_LENGTH)

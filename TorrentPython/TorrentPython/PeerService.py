@@ -9,7 +9,7 @@ from tornado.ioloop import PeriodicCallback
 class PeerService(object):
 
     SOCKET_TIMEOUT = 3  # sec
-    KEEP_ALIVE_TIMEOUT = 120  # sec
+    KEEP_ALIVE_TIMEOUT = 20  # sec
 
     def __init__(self, peerInfo, info_hash: bytes):
         self.my_id = TorrentUtils.getPeerID()
