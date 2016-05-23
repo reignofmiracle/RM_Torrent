@@ -3,21 +3,33 @@ import socket
 from TorrentPython.TorrentUtils import *
 from TorrentPython.PeerProtocol import *
 
-from tornado.ioloop import PeriodicCallback
+from rx import *
 
 
 class PeerService(object):
 
-    SOCKET_TIMEOUT = 3  # sec
-    KEEP_ALIVE_TIMEOUT = 20  # sec
+    KEEP_ALIVE_TIMEOUT = 5  # sec
 
-    def __init__(self, peerInfo, info_hash: bytes):
+    @staticmethod
+    def create(peerInfo, info_hash: bytes):
+        ret = PeerService()
+
+        ret.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            ret.sock.connect(peerInfo)
+        except:
+            del ret
+            return None
+
+        ret.info_hash = info_hash
+
+        return ret
+
+    def __init__(self):
         self.my_id = TorrentUtils.getPeerID()
-        self.info_hash = info_hash
-        self.peerInfo = peerInfo
+        self.info_hash = None
         self.sock = None
         self.isHandShaked = False
-        self.keepAliveCallback = None
 
     def __del__(self):
         if self.sock is not None:
@@ -27,15 +39,7 @@ class PeerService(object):
         if self.isHandShaked is True:
             return True
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(PeerService.SOCKET_TIMEOUT)
-
-        try:
-            self.sock.connect(self.peerInfo)
-        except:
-            return False
-
-        msg = PeerProtocol.getHandShakeMsg(self.info_hash)
+        msg = PeerProtocol.getHandShakeMsg(self.info_hash, self.my_id)
         if msg is None:
             return False
 
@@ -43,12 +47,11 @@ class PeerService(object):
         if ret is False:
             return False
 
-        handShake = PeerProtocol.parseHandShake(self.recv(128))
-        if handShake is None or handShake[b'info_hash'] != self.info_hash:
-            return False
+        # response = PeerProtocol.parseHandShake(self.recv(256))
+        # if handShake is None or handShake[b'info_hash'] != self.info_hash:
+        #     return False
 
-        self.keepAliveCallback = PeriodicCallback(lambda: self.keepAlive(), PeerService.KEEP_ALIVE_TIMEOUT * 1000)
-        self.keepAliveCallback.start()
+        # Observable.interval(PeerService.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
 
         self.isHandShaked = True
         return True
@@ -78,7 +81,4 @@ class PeerService(object):
         self.sock.send(PeerProtocol.getBitfield(b' ' * 41))
 
     def recv(self, length):
-        try:
-            return self.sock.recv(length)
-        except:
-            return b''
+        return self.sock.recv(length)

@@ -10,43 +10,29 @@ PIECE_LENGTH = 524288
 TOTAL_LENGTH = 686817280
 BUFFER_LENGTH = pow(2, 15)
 
-SAMPLE_PEER = ('127.0.0.1', 57834)
+SAMPLE_PEER = ('127.0.0.1', 61334)
 
 
 class PeerServiceTest(unittest.TestCase):
     def setUp(self):
-        # DHTService.TIMEOUT_SEC = 0.5 # secs
-        # service = DHTService()
-        # peers, routingTable = DHTExplorer.findPeers(service, self.routingTable, INFO_HASH)
-        # self.assertTrue(len(peers) > 0)
         self.peer = SAMPLE_PEER
         pass
-
-        # self.testObj = PeerService(self.peer, INFO_HASH)
-        # ret = self.testObj.handShake()
-        # self.assertTrue(ret)
-        #
-        # ret = self.testObj.interested()
-        # self.assertTrue(ret)
 
     def tearDown(self):
         pass
 
     # @unittest.skip("clear")
     def test_downloadSequence(self):
-        testObj = PeerService(self.peer, INFO_HASH)
+        testObj = PeerService.create(self.peer, INFO_HASH)
+
         self.assertTrue(testObj.handShake())
 
+        # testObj.unchoke()
         testObj.interested()
-        testObj.request(0, 0, 2 ** 14)
-        print(testObj.recv(1024))
 
-
-        # for i in range(1, 10):
-        #     testObj.request(i, 0, BLOCK_LENGTH)
-        #     time.sleep(10)
-        #     print(testObj.recv(BLOCK_LENGTH))
-
+        while True:
+            print(testObj.recv(256))
+            time.sleep(3)
 
         del testObj
 

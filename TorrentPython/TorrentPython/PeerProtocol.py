@@ -16,19 +16,20 @@ class PeerProtocol(object):
         REQUEST = 6
 
     @staticmethod
-    def getHandShakeMsg(info_hash: bytes):
-        if len(info_hash) != 20:
+    def getHandShakeMsg(info_hash: bytes, peer_id: bytes):
+        if len(info_hash) != 20 or len(peer_id) != 20:
             return None
 
         pstrlen = struct.pack('!B', len(PeerProtocol.PROTOCOL_ID))
         pstr = PeerProtocol.PROTOCOL_ID
-        reserved = b' ' * 8
+        reserved = b'\x00' * 8
 
-        return pstrlen + pstr + reserved + info_hash
+        return pstrlen + pstr + reserved + info_hash + peer_id
 
     @staticmethod
     def getKeepAliveMsg():
         lengthPrefix = struct.pack('!I', 0)
+        print(lengthPrefix)
         return lengthPrefix
 
     @staticmethod
@@ -94,7 +95,13 @@ class PeerProtocol(object):
 
     @staticmethod
     def isHandShake(msg):
-        return len(msg) is 48 or len(msg) is 68
+        if not (len(msg) is 48 or len(msg) is 68):
+            return False
 
+        if struct.unpack('>B', msg[:1])[0] != len(PeerProtocol.PROTOCOL_ID):
+            return False
 
+        if msg[1:1 + len(PeerProtocol.PROTOCOL_ID)] != PeerProtocol.PROTOCOL_ID:
+            return False
 
+        return True
