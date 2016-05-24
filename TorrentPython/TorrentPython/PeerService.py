@@ -1,4 +1,5 @@
 import socket
+import logging
 
 from TorrentPython.TorrentUtils import *
 from TorrentPython.PeerProtocol import *
@@ -14,7 +15,7 @@ class PeerService(object):
     def create(peerInfo, info_hash: bytes):
         ret = PeerService()
 
-        ret.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ret.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
         try:
             ret.sock.connect(peerInfo)
         except:
@@ -43,12 +44,16 @@ class PeerService(object):
         if msg is None:
             return False
 
-        ret = self.sock.send(msg)
-        if ret is False:
-            return False
+        print(len(msg))
 
-        # response = PeerProtocol.parseHandShake(self.recv(256))
-        # if handShake is None or handShake[b'info_hash'] != self.info_hash:
+        logging.debug(msg)
+        self.sock.send(msg)
+
+        received = self.recv(68)
+        logging.debug(received)
+
+        # response = PeerProtocol.parseHandShake(received)
+        # if response is None or response[b'info_hash'] != self.info_hash:
         #     return False
 
         # Observable.interval(PeerService.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
@@ -66,6 +71,7 @@ class PeerService(object):
         self.sock.send(PeerProtocol.getUnchoke())
 
     def interested(self):
+        logging.debug('interested')
         self.sock.send(PeerProtocol.getInterested())
 
     def notInterest(self):
@@ -75,6 +81,7 @@ class PeerService(object):
         self.sock.send(PeerProtocol.getHave(index))
 
     def request(self, index, begin, length):
+        logging.debug('request')
         self.sock.send(PeerProtocol.getRequestMsg(index, begin, length))
 
     def bitfield(self):

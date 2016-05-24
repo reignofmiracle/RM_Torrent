@@ -1,7 +1,10 @@
 import unittest
 import time
-
+import logging
+import sys
 from TorrentPython.PeerService import *
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 INFO_HASH = b'i\x9c\xda\x89Z\xf6\xfb\xd5\xa8\x17\xff\xf4\xfeo\xa8\xab\x87\xe3oH'
 FIRST_PIECE_HASH = b'\x11\x12\xac\x17\x04\xe6JS\x8a\x81\x9a\xa9\x05!m\xf7\x1drpk'
@@ -10,7 +13,7 @@ PIECE_LENGTH = 524288
 TOTAL_LENGTH = 686817280
 BUFFER_LENGTH = pow(2, 15)
 
-SAMPLE_PEER = ('127.0.0.1', 61334)
+SAMPLE_PEER = ('127.0.0.1', 60730)
 
 
 class PeerServiceTest(unittest.TestCase):
@@ -24,14 +27,15 @@ class PeerServiceTest(unittest.TestCase):
     # @unittest.skip("clear")
     def test_downloadSequence(self):
         testObj = PeerService.create(self.peer, INFO_HASH)
+        self.assertIsNotNone(testObj)
 
         self.assertTrue(testObj.handShake())
 
-        # testObj.unchoke()
-        testObj.interested()
+        testObj.unchoke()
+        # testObj.interested()
 
         while True:
-            print(testObj.recv(256))
+            print(testObj.recv(1024))
             time.sleep(3)
 
         del testObj
