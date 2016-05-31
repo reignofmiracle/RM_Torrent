@@ -16,8 +16,8 @@ class PeerProtocol(object):
         REQUEST = 6
 
     @staticmethod
-    def getHandShakeMsg(info_hash: bytes, peer_id: bytes):
-        if len(info_hash) != 20 or len(peer_id) != 20:
+    def getHandShakeMsg(peer_id: bytes, info_hash: bytes):
+        if len(peer_id) != 20 or len(info_hash) != 20:
             return None
 
         pstrlen = struct.pack('!B', len(PeerProtocol.PROTOCOL_ID))

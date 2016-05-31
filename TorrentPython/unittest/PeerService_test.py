@@ -13,7 +13,7 @@ PIECE_LENGTH = 524288
 TOTAL_LENGTH = 686817280
 BUFFER_LENGTH = pow(2, 15)
 
-SAMPLE_PEER = ('127.0.0.1', 60730)
+SAMPLE_PEER = ('127.0.0.1', 51413)  # transmission
 
 
 class PeerServiceTest(unittest.TestCase):
