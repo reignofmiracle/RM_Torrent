@@ -4,6 +4,7 @@
       <w>addr</w>
       <w>bencode</w>
       <w>bencoded</w>
+      <w>bufsize</w>
       <w>epos</w>
       <w>npos</w>
       <w>pstr</w>

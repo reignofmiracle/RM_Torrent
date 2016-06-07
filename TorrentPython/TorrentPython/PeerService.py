@@ -1,91 +1,86 @@
 import socket
 import logging
 
-from TorrentPython.TorrentUtils import *
-from TorrentPython.PeerProtocol import *
+from threading import Thread
 
+from TorrentPython.PeerProtocol import *
 from rx import *
 
 
 class PeerService(object):
 
-    KEEP_ALIVE_TIMEOUT = 5  # sec
+    KEEP_ALIVE_TIMEOUT = 20
+    BLOCK_SIZE = 2 ^ 14
 
-    @staticmethod
-    def create(peerInfo, info_hash: bytes):
-        ret = PeerService()
-
-        ret.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-        try:
-            ret.sock.connect(peerInfo)
-        except:
-            del ret
-            return None
-
-        ret.info_hash = info_hash
-
-        return ret
-
-    def __init__(self):
-        self.my_id = TorrentUtils.getPeerID()
-        self.info_hash = None
+    def __init__(self, info_hash, peer_id):
+        self.info_hash = info_hash
+        self.peer_id = peer_id
         self.sock = None
-        self.isHandShaked = False
+        self.keepAliveSubscription = None
 
     def __del__(self):
+        self.cleanUp()
+
+    def cleanUp(self):
         if self.sock is not None:
             self.sock.close()
 
-    def handShake(self):
-        if self.isHandShaked is True:
-            return True
+        if self.keepAliveSubscription is not None:
+            self.keepAliveSubscription.unsubscribe()
 
-        msg = PeerProtocol.getHandShakeMsg(self.info_hash, self.my_id)
-        if msg is None:
+    def handShake(self, peer_ip, peer_port):
+        self.cleanUp()
+
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.sock.connect((peer_ip, peer_port))
+        except:
+            self.cleanUp()
             return False
 
-        print(len(msg))
+        msg = PeerProtocol.getHandShakeMsg(self.info_hash, self.peer_id)
+        if msg is None:
+            self.cleanUp()
+            return False
 
         logging.debug(msg)
+
         self.sock.send(msg)
+        received = self.sock.recv(68)
 
-        received = self.recv(68)
-        logging.debug(received)
+        if not PeerProtocol.isHandShake(received):
+            self.cleanUp()
+            return False
 
-        # response = PeerProtocol.parseHandShake(received)
-        # if response is None or response[b'info_hash'] != self.info_hash:
-        #     return False
+        response = PeerProtocol.parseHandShake(received)
+        if response is None or response[b'info_hash'] != self.info_hash:
+            self.cleanUp()
+            return False
 
-        # Observable.interval(PeerService.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
+        self.keepAliveSubscription = Observable.interval(
+            PeerService.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
 
-        self.isHandShaked = True
+        self.th = Thread(target=PeerService.updateThread, args=(self,))
+        self.th.start()
+
         return True
 
     def keepAlive(self):
         self.sock.send(PeerProtocol.getKeepAliveMsg())
 
-    def choke(self):
-        self.sock.send(PeerProtocol.getChoke())
+    def update(self, msg):
 
-    def unchoke(self):
-        self.sock.send(PeerProtocol.getUnchoke())
+        print(msg)
+        if PeerProtocol.isKeepAlive(msg):
+            print('KeepAlive')
 
-    def interested(self):
-        logging.debug('interested')
-        self.sock.send(PeerProtocol.getInterested())
+    def recv(self, bufsize):
+        return self.sock.recv(bufsize)
 
-    def notInterest(self):
-        self.sock.send(PeerProtocol.getNotInterested())
-
-    def have(self, index):
-        self.sock.send(PeerProtocol.getHave(index))
-
-    def request(self, index, begin, length):
-        logging.debug('request')
-        self.sock.send(PeerProtocol.getRequestMsg(index, begin, length))
-
-    def bitfield(self):
-        self.sock.send(PeerProtocol.getBitfield(b' ' * 41))
-
-    def recv(self, length):
-        return self.sock.recv(length)
+    @staticmethod
+    def updateThread(peerService):
+        try:
+            while True:
+                peerService.update(peerService.recv(PeerService.BLOCK_SIZE))
+        except:
+            pass

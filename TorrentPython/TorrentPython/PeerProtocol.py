@@ -16,13 +16,13 @@ class PeerProtocol(object):
         REQUEST = 6
 
     @staticmethod
-    def getHandShakeMsg(peer_id: bytes, info_hash: bytes):
-        if len(peer_id) != 20 or len(info_hash) != 20:
+    def getHandShakeMsg(info_hash: bytes, peer_id: bytes):
+        if len(info_hash) != 20 or len(peer_id) != 20:
             return None
 
         pstrlen = struct.pack('!B', len(PeerProtocol.PROTOCOL_ID))
         pstr = PeerProtocol.PROTOCOL_ID
-        reserved = b'\x00' * 8
+        reserved = b'\x00\x00\x00\x00\x00\x00\x00\x00'
 
         return pstrlen + pstr + reserved + info_hash + peer_id
 
@@ -80,28 +80,67 @@ class PeerProtocol(object):
 
     @staticmethod
     def parseHandShake(msg):
-        if not PeerProtocol.isHandShake(msg):
-            return None
-
-        ret = {b'pstrlen': msg[0],
-               b'pstr': msg[1:1 + 19],
-               b'reserved': msg[20:20 + 8],
-               b'info_hash': msg[28:28 + 20]}
-
-        if len(msg) is 68:
-            ret[b'peer_id'] = msg[48:68]
-
-        return ret
+        return {b'pstrlen': msg[0:0 + 1],
+                b'pstr': msg[1:1 + 19],
+                b'reserved': msg[20:20 + 8],
+                b'info_hash': msg[28:28 + 20],
+                b'peer_id': msg[48:48 + 20]}
 
     @staticmethod
     def isHandShake(msg):
-        if not (len(msg) is 48 or len(msg) is 68):
+        if len(msg) is not 68:
             return False
 
-        if struct.unpack('>B', msg[:1])[0] != len(PeerProtocol.PROTOCOL_ID):
+        handshake = PeerProtocol.parseHandShake(msg)
+
+        if struct.unpack('>B', handshake[b'pstrlen'])[0] != len(PeerProtocol.PROTOCOL_ID):
             return False
 
-        if msg[1:1 + len(PeerProtocol.PROTOCOL_ID)] != PeerProtocol.PROTOCOL_ID:
+        if handshake[b'pstr'] != PeerProtocol.PROTOCOL_ID:
             return False
 
         return True
+
+    @staticmethod
+    def isKeepAlive(msg):
+        return b'\x00\x00\x00\x00' == msg
+
+    @staticmethod
+    def isChock(msg):
+        return False
+
+    @staticmethod
+    def isUnchock(msg):
+        return False
+
+    @staticmethod
+    def isInterest(msg):
+        return False
+
+    @staticmethod
+    def isNotInterest(msg):
+        return False
+
+    @staticmethod
+    def isHave(msg):
+        return False
+
+    @staticmethod
+    def isBitfield(msg):
+        return False
+
+    @staticmethod
+    def isRequest(msg):
+        return False
+
+    @staticmethod
+    def isPiece(msg):
+        return False
+
+    @staticmethod
+    def isCancel(msg):
+        return False
+
+    @staticmethod
+    def isPort(msg):
+        return False
