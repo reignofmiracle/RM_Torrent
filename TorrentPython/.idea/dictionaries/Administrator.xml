@@ -6,6 +6,7 @@
       <w>bencoded</w>
       <w>bufsize</w>
       <w>epos</w>
+      <w>metainfo</w>
       <w>npos</w>
       <w>pstr</w>
       <w>pstrlen</w>

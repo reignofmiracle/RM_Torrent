@@ -3,6 +3,7 @@ import logging
 
 from threading import Thread
 
+from TorrentPython.MetaInfo import *
 from TorrentPython.PeerMessage import *
 from rx import *
 
@@ -10,17 +11,17 @@ from rx import *
 class PeerService(object):
 
     KEEP_ALIVE_TIMEOUT = 20
-    BLOCK_SIZE = 2 ^ 14
+    BLOCK_SIZE = 2 ** 14
 
-    def __init__(self, info_hash, peer_id):
-        self.info_hash = info_hash
+    def __init__(self, metainfo: MetaInfo, peer_id):
+        self.metainfo = metainfo
         self.peer_id = peer_id
         self.sock = None
         self.keepAliveSubscription = None
         self.th = None
         self.remain = b''
         self.chock = True
-        self.bitfield = b''
+        self.bitfield = None
 
     def __del__(self):
         self.cleanUp()
@@ -42,7 +43,7 @@ class PeerService(object):
             self.cleanUp()
             return False
 
-        buf = Handshake.getBytes(self.info_hash, self.peer_id)
+        buf = Handshake.getBytes(self.metainfo.info_hash, self.peer_id)
         if buf is None:
             self.cleanUp()
             return False
@@ -53,7 +54,7 @@ class PeerService(object):
         received = self.sock.recv(Handshake.MESSAGE_LEN)
 
         msg = Handshake.create(received)
-        if msg is None or msg.info_hash != self.info_hash:
+        if msg is None or msg.info_hash != self.metainfo.info_hash:
             self.cleanUp()
             return False
 
@@ -68,6 +69,15 @@ class PeerService(object):
 
     def keepAlive(self):
         self.sock.send(KeepAlive.getBytes())
+
+    def request(self, idx):
+        if self.chock is True or self.bitfield is None:
+            return False
+
+        self.sock.send(Request.getBytes(idx))
+
+    def requestAsync(self, idx, callback):
+        pass
 
     def handle(self, buf):
         buf = self.remain + buf

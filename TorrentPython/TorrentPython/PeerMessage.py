@@ -173,6 +173,9 @@ class Chock(Message):
     def __repr__(self):
         return 'Chock'
 
+    def update(self, service):
+        service.chock = True
+
 
 class Unchock(Message):
     @staticmethod
@@ -249,6 +252,9 @@ class Bitfield(Message):
 
     def __repr__(self):
         return 'Bitfield'
+
+    def update(self, service):
+        service.bitfield = self
 
     def have(self, idx):  # start index is "1"
         if idx < 1 or idx > len(self.bitfield) * 8:

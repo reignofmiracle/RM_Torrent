@@ -4,15 +4,15 @@ import hashlib
 from TorrentPython.Bencode import *
 
 
-class MetaInfoManager(object):
+class MetaInfo(object):
 
     @staticmethod
-    def parseFromMagnet(magnetStr):
+    def parseMagnet(magnetStr):
         metaInfo = {}
         return metaInfo, b''  # TODO:
 
     @staticmethod
-    def parseFromTorrent(torrentPath):
+    def parseTorrent(torrentPath):
         if torrentPath is None:
             return None
 
@@ -46,3 +46,22 @@ class MetaInfoManager(object):
             return None
 
         return hashlib.sha1(bencoded_info).digest()
+
+    @staticmethod
+    def createFromTorrent(torrentPath):
+        metainfo = MetaInfo.parseTorrent(torrentPath)
+        if metainfo is None:
+            return None
+
+        info_hash = MetaInfo.getInfoHashFromTorrent(torrentPath)
+        if info_hash is None:
+            return None
+
+        return MetaInfo(metainfo, info_hash)
+
+    def __init__(self, metainfo, info_hash):
+        self.metainfo = metainfo
+        self.info_hash = info_hash
+
+    def getPieceLength(self):
+        return self.metainfo[b'info'][b'piece length']

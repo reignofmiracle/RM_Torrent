@@ -1,4 +1,4 @@
-from TorrentPython.MetaInfoManager import *
+from TorrentPython.MetaInfo import *
 
 import hashlib
 import urllib.request
@@ -13,8 +13,8 @@ class TrackerManager(object):
 
     @staticmethod
     def CreateFromTorrent(torrentPath):
-        metaInfo = MetaInfoManager.parseFromTorrent(torrentPath)
-        bencoded_info = MetaInfoManager.getInfoHashFromTorrent(torrentPath)
+        metaInfo = MetaInfo.parseTorrent(torrentPath)
+        bencoded_info = MetaInfo.getInfoHashFromTorrent(torrentPath)
         if metaInfo is None or bencoded_info is None:
             return None
 

@@ -17,7 +17,7 @@ class BencodeTest(unittest.TestCase):
     def tearDown(self):
         pass    
 
-    @unittest.skip("wait")
+    # @unittest.skip("wait")
     def test_decode(self):
         ret = Bencode.decode(self.source)        
         self.assertIsNotNone(ret)
@@ -25,9 +25,9 @@ class BencodeTest(unittest.TestCase):
         for key in ret:
             print(key)
 
-        print(b'created by : ', ret[b'created by'])
+        # print(b'created by : ', ret[b'created by'])
         print(b'creation date : ', ret[b'creation date'])
-        print(b'encoding : ', ret[b'encoding'])
+        # print(b'encoding : ', ret[b'encoding'])
         print(b'comment : ', ret[b'comment'].decode('UTF-8'))
         print(b'announce : ', ret[b'announce'])
         print(b'announce-list : ', ret[b'announce-list'])
@@ -37,10 +37,10 @@ class BencodeTest(unittest.TestCase):
 
         info = ret[b'info']
 
-        print(b'files : ', info[b'files'])
+        # print(b'files : ', info[b'files'])
         print(b'name : ', info[b'name'].decode('UTF-8'))
 
-        print(info[b'files'][0][b'path'][0].decode('UTF-8'))
+        # print(info[b'files'][0][b'path'][0].decode('UTF-8'))
 
     # @unittest.skip("wait")
     def test_getDecoder(self):

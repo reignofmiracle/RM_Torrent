@@ -8,7 +8,7 @@ from TorrentPython.TorrentUtils import *
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-INFO_HASH = b'i\x9c\xda\x89Z\xf6\xfb\xd5\xa8\x17\xff\xf4\xfeo\xa8\xab\x87\xe3oH'
+TORRENT_PATH = '../Resources/sample.torrent'
 
 TRANSMISSION_IP = '192.168.10.5'
 TRANSMISSION_PORT = 51413
@@ -19,7 +19,8 @@ class PeerServiceTest(unittest.TestCase):
     def setUp(self):
         self.peer_ip = TRANSMISSION_IP
         self.peer_port = TRANSMISSION_PORT
-        self.info_hash = INFO_HASH
+        self.metainfo = MetaInfo.createFromTorrent(TORRENT_PATH)
+        self.assertIsNotNone(self.metainfo)
         self.peer_id = TorrentUtils.getPeerID()
         pass
 
@@ -28,7 +29,7 @@ class PeerServiceTest(unittest.TestCase):
 
     # @unittest.skip("clear")
     def test_handShake(self):
-        testObj = PeerService(self.info_hash, self.peer_id)
+        testObj = PeerService(self.metainfo, self.peer_id)
         self.assertIsNotNone(testObj)
         self.assertTrue(testObj.handShake(self.peer_ip, self.peer_port))
 
