@@ -7,5 +7,5 @@ class TorrentUtils(object):
 
     @staticmethod
     def getPeerID():
-        client = b'-' + RM_CLIENT_ID + RM_CLIENT_VERSION + b'-'
+        client = b'-' + Defines.RM_CLIENT_ID + Defines.RM_CLIENT_VERSION + b'-'
         return client + os.urandom(20 - len(client))

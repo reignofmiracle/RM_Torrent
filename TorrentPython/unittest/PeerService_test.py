@@ -31,6 +31,8 @@ class PeerServiceTest(unittest.TestCase):
         testObj = PeerService(self.info_hash, self.peer_id)
         self.assertIsNotNone(testObj)
         self.assertTrue(testObj.handShake(self.peer_ip, self.peer_port))
+
+        time.sleep(2000)
         del testObj
 
 

@@ -3,7 +3,7 @@ import logging
 
 from threading import Thread
 
-from TorrentPython.PeerProtocol import *
+from TorrentPython.PeerMessage import *
 from rx import *
 
 
@@ -17,6 +17,10 @@ class PeerService(object):
         self.peer_id = peer_id
         self.sock = None
         self.keepAliveSubscription = None
+        self.th = None
+        self.remain = b''
+        self.chock = True
+        self.bitfield = b''
 
     def __del__(self):
         self.cleanUp()
@@ -38,49 +42,52 @@ class PeerService(object):
             self.cleanUp()
             return False
 
-        msg = PeerProtocol.getHandShakeMsg(self.info_hash, self.peer_id)
-        if msg is None:
+        buf = Handshake.getBytes(self.info_hash, self.peer_id)
+        if buf is None:
             self.cleanUp()
             return False
 
-        logging.debug(msg)
+        logging.debug(buf)
 
-        self.sock.send(msg)
-        received = self.sock.recv(68)
+        self.sock.send(buf)
+        received = self.sock.recv(Handshake.MESSAGE_LEN)
 
-        if not PeerProtocol.isHandShake(received):
-            self.cleanUp()
-            return False
-
-        response = PeerProtocol.parseHandShake(received)
-        if response is None or response[b'info_hash'] != self.info_hash:
+        msg = Handshake.create(received)
+        if msg is None or msg.info_hash != self.info_hash:
             self.cleanUp()
             return False
 
         self.keepAliveSubscription = Observable.interval(
             PeerService.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
 
-        self.th = Thread(target=PeerService.updateThread, args=(self,))
+        self.th = Thread(target=PeerService.messageThread, args=(self,))
+        self.th.daemon = True
         self.th.start()
 
         return True
 
     def keepAlive(self):
-        self.sock.send(PeerProtocol.getKeepAliveMsg())
+        self.sock.send(KeepAlive.getBytes())
 
-    def update(self, msg):
+    def handle(self, buf):
+        buf = self.remain + buf
+        while True:
+            msg, buf = Message.parse(buf)
+            if msg is None:
+                break
+            else:
+                print('Received : ', msg)
+                msg.update(self)
 
-        print(msg)
-        if PeerProtocol.isKeepAlive(msg):
-            print('KeepAlive')
+        self.remain = buf
 
     def recv(self, bufsize):
         return self.sock.recv(bufsize)
 
     @staticmethod
-    def updateThread(peerService):
+    def messageThread(peerService):
         try:
             while True:
-                peerService.update(peerService.recv(PeerService.BLOCK_SIZE))
+                peerService.handle(peerService.recv(PeerService.BLOCK_SIZE))
         except:
             pass
