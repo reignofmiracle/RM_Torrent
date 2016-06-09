@@ -4,7 +4,7 @@ from TorrentPython.Defines import *
 
 
 class Handshake(object):
-    MESSAGE_LEN = 68
+    TOTAL_LEN = 68
 
     @staticmethod
     def getBytes(info_hash: bytes, peer_id: bytes):
@@ -19,7 +19,7 @@ class Handshake(object):
 
     @staticmethod
     def isThis(buf: bytes):
-        if len(buf) is not Handshake.MESSAGE_LEN:
+        if len(buf) is not Handshake.TOTAL_LEN:
             return False
 
         if struct.unpack('>B', buf[0:0 + 1])[0] != len(Defines.PROTOCOL_ID):
@@ -130,9 +130,6 @@ class Message(object):
         self.id = message_id
         self.buf = message_buf
 
-    def update(self, service):
-        pass
-
 
 class KeepAlive(Message):
     MESSAGE = b'\x00\x00\x00\x00'
@@ -173,9 +170,6 @@ class Chock(Message):
     def __repr__(self):
         return 'Chock'
 
-    def update(self, service):
-        service.chock = True
-
 
 class Unchock(Message):
     @staticmethod
@@ -193,11 +187,12 @@ class Unchock(Message):
     def __repr__(self):
         return 'Unchock'
 
-    def update(self, service):
-        service.chock = False
-
 
 class Interested(Message):
+    @staticmethod
+    def getBytes():
+        return b'\x00\x00\x00\x01\x02'
+
     @staticmethod
     def create(buf: bytes):
         msg = Message.create(buf)
@@ -253,9 +248,6 @@ class Bitfield(Message):
     def __repr__(self):
         return 'Bitfield'
 
-    def update(self, service):
-        service.bitfield = self
-
     def have(self, idx):  # start index is "1"
         if idx < 1 or idx > len(self.bitfield) * 8:
             return False
@@ -270,11 +262,45 @@ class Bitfield(Message):
 
 
 class Request(Message):
-    pass
+    MESSAGE_LEN = 1 + 4 + 4 + 4  # id, index, begin, length
+
+    @staticmethod
+    def getBytes(index, begin, length):
+        message_len = struct.pack('!I', Request.MESSAGE_LEN)
+        message_id = struct.pack('!B', Message.REQUEST)
+        message_content = struct.pack('!III', index, begin, length)
+        return message_len + message_id + message_content
 
 
 class Piece(Message):
-    pass
+    INDEX_OFFSET = Message.LEN_SIZE + Message.ID_SIZE
+    INDEX_SIZE = 4
+
+    BEGIN_OFFSET = INDEX_OFFSET + INDEX_SIZE
+    BEGIN_SIZE = 4
+
+    BLOCK_OFFSET = BEGIN_OFFSET + BEGIN_SIZE
+
+    @staticmethod
+    def create(buf: bytes):
+        msg = Message.create(buf)
+        if msg.id is not Message.PIECE:
+            return None
+
+        obj = Piece(msg.len, msg.id, msg.buf)
+        obj.index = struct.unpack('!I', msg.buf[Piece.INDEX_OFFSET: Piece.INDEX_OFFSET + Piece.INDEX_SIZE])[0]
+        obj.begin = struct.unpack('!I', msg.buf[Piece.BEGIN_OFFSET: Piece.BEGIN_OFFSET + Piece.BEGIN_SIZE])[0]
+        obj.block = msg.buf[Piece.BLOCK_OFFSET:]
+        return obj
+
+    def __init__(self, message_len, message_id, message_buf):
+        super(Piece, self).__init__(message_len, message_id, message_buf)
+        self.index = 0
+        self.begin = 0
+        self.block = b''
+
+    def __repr__(self):
+        return 'Piece'
 
 
 class Cancel(Message):

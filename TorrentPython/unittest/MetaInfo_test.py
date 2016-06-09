@@ -34,7 +34,7 @@ class MetaInfoTest(unittest.TestCase):
     def test_createFromTorrent(self):
         metainfo = MetaInfo.createFromTorrent(TORRENT_PATH)
         self.assertIsNotNone(metainfo)
-        self.assertEqual(524288, metainfo.getPieceLength())
+        self.assertEqual(524288, metainfo.getInfoPieceLength())
 
 
 if __name__ == '__main__':

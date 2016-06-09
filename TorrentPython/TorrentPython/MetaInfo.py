@@ -63,5 +63,18 @@ class MetaInfo(object):
         self.metainfo = metainfo
         self.info_hash = info_hash
 
-    def getPieceLength(self):
+    def getInfoPieceLength(self):
         return self.metainfo[b'info'][b'piece length']
+
+    def getInfoLength(self):
+        return self.metainfo[b'info'][b'length']
+
+    def getInfoPieceNum(self):
+        pieceNum = int(self.getInfoLength() / self.getInfoPieceLength())
+
+        if self.getInfoLength() % self.getInfoPieceLength() is not 0:
+            pieceNum += 1
+
+        return pieceNum
+
+
