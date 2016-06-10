@@ -1,16 +1,16 @@
 import unittest
 import time
 
-from TorrentPython.PieceDownloader import *
+from TorrentPython.PeerRadio import *
 from TorrentPython.TorrentUtils import *
 
 TORRENT_PATH = '../Resources/sample.torrent'
 
-TRANSMISSION_IP = '192.168.10.5'
+TRANSMISSION_IP = '192.168.10.11'
 TRANSMISSION_PORT = 51413
 
 
-class PieceDownloaderTest(unittest.TestCase):
+class PeerRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
@@ -25,9 +25,23 @@ class PieceDownloaderTest(unittest.TestCase):
 
     # @unittest.skip("clear")
     def test_create(self):
-        testObj = PieceDownloader.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port, [0])
+        testObj = PeerRadio.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
-        testObj.subscribe(lambda x: print(len(x[1])))
+
+        def handler(msg: Message):
+            if msg.id == Message.PIECE:
+                print(msg.index, msg.begin)
+
+        testObj.subscribe(on_next=handler, on_completed=lambda: print("completed!"))
+
+        time.sleep(5)
+
+        for i in range(0, 300):
+            for j in range(0, 32):
+                testObj.request(i, PeerRadio.BLOCK_SIZE * j)
+
+            if i % 8 == 0:
+                time.sleep(1)
 
         time.sleep(100000)
         del testObj

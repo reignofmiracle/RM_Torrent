@@ -32,10 +32,12 @@ class BencodeTest(unittest.TestCase):
         print(b'announce : ', ret[b'announce'])
         print(b'announce-list : ', ret[b'announce-list'])
 
-        for key in ret[b'info']:
-            print(key)
-
         info = ret[b'info']
+        for key in info:
+            if key == b'piece length':
+                print(key, info[key])
+            if key == b'length':
+                print(key, info[key])
 
         # print(b'files : ', info[b'files'])
         print(b'name : ', info[b'name'].decode('UTF-8'))

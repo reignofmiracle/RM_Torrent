@@ -58,7 +58,7 @@ class Message(object):
     ID_OFFSET = LEN_OFFSET + LEN_SIZE
     ID_SIZE = 1
 
-    CONTENT_OFFSET = LEN_SIZE + ID_SIZE
+    PAYLOAD_OFFSET = LEN_SIZE + ID_SIZE
 
     KEEP_ALIVE = None
     CHOCK = 0
@@ -238,7 +238,7 @@ class Bitfield(Message):
             return None
 
         obj = Bitfield(msg.len, msg.id, msg.buf)
-        obj.bitfield = msg.buf[Message.CONTENT_OFFSET:]
+        obj.bitfield = msg.buf[Message.PAYLOAD_OFFSET:]
         return obj
 
     def __init__(self, message_len, message_id, message_buf):
@@ -304,7 +304,20 @@ class Piece(Message):
 
 
 class Cancel(Message):
-    pass
+    @staticmethod
+    def create(buf: bytes):
+        msg = Message.create(buf)
+        if msg.id is not Message.CANCEL:
+            return None
+
+        obj = Cancel(msg.len, msg.id, msg.buf)
+        return obj
+
+    def __init__(self, message_len, message_id, message_buf):
+        super(Cancel, self).__init__(message_len, message_id, message_buf)
+
+    def __repr__(self):
+        return 'Cancel'
 
 
 class Port(Message):
