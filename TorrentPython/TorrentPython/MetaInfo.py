@@ -72,9 +72,22 @@ class MetaInfo(object):
     def getInfoPieceNum(self):
         pieceNum = int(self.getInfoLength() / self.getInfoPieceLength())
 
-        if self.getInfoLength() % self.getInfoPieceLength() is not 0:
+        if (self.getInfoLength() % self.getInfoPieceLength()) is not 0:
             pieceNum += 1
 
         return pieceNum
+
+    def isValidPieceIndex(self, index):
+        return 0 <= index < self.getInfoPieceNum()
+
+    def isLastPieceIndex(self, index):
+        return index == (self.getInfoPieceNum() - 1)
+
+    def getLastPieceLength(self):
+        remain = self.getInfoLength() % self.getInfoPieceLength()
+        return remain if remain > 0 else self.getInfoPieceLength()
+
+    def getPieceLength(self, index):
+        return self.getLastPieceLength() if self.isLastPieceIndex(index) else self.getInfoPieceLength()
 
 

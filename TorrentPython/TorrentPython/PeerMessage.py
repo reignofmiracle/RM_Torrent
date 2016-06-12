@@ -78,12 +78,16 @@ class Message(object):
             return None
 
         message_len = struct.unpack('!I', buf[Message.LEN_OFFSET:Message.LEN_SIZE])[0]
-        message_id = struct.unpack('!B', buf[Message.ID_OFFSET:Message.ID_OFFSET + Message.ID_SIZE])[0]
+        if message_len is 0:
+            message_id = None
+            message_buf = None
+        else:
+            if len(buf) < Message.LEN_SIZE + message_len:
+                return None
 
-        if len(buf) < Message.LEN_SIZE + message_len:
-            return None
+            message_id = struct.unpack('!B', buf[Message.ID_OFFSET:Message.ID_OFFSET + Message.ID_SIZE])[0]
+            message_buf = buf[:Message.LEN_SIZE + message_len]
 
-        message_buf = buf[:Message.LEN_SIZE + message_len]
         return Message(message_len, message_id, message_buf)
 
     @staticmethod
@@ -141,7 +145,7 @@ class KeepAlive(Message):
     @staticmethod
     def create(buf: bytes):
         msg = Message.create(buf)
-        if msg.id is not Message.CHOCK:
+        if msg.id is not Message.KEEP_ALIVE:
             return None
 
         obj = KeepAlive(msg.len, msg.id, msg.buf)
@@ -227,7 +231,12 @@ class NotInterested(Message):
 
 
 class Have(Message):
-    pass
+    @staticmethod
+    def getBytes(index):
+        message_len = struct.pack('!I', 5)
+        message_id = struct.pack('!B', Message.HAVE)
+        message_payload = struct.pack('!I', index)
+        return message_len + message_id + message_payload
 
 
 class Bitfield(Message):

@@ -30,11 +30,25 @@ class MetaInfoTest(unittest.TestCase):
         self.assertIsNotNone(info_hash)
         print(info_hash)
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_createFromTorrent(self):
         metainfo = MetaInfo.createFromTorrent(TORRENT_PATH)
         self.assertIsNotNone(metainfo)
         self.assertEqual(524288, metainfo.getInfoPieceLength())
+
+    # @unittest.skip("clear")
+    def test_getPieceLength(self):
+        metainfo = MetaInfo.createFromTorrent(TORRENT_PATH)
+        self.assertIsNotNone(metainfo)
+
+        self.assertTrue(metainfo.isLastPieceIndex(1309))
+
+        print(metainfo.getInfoLength())
+        print(metainfo.getInfoPieceLength())
+        self.assertTrue(metainfo.getLastPieceLength() > 0)
+
+        last_piece_length = metainfo.getPieceLength(1309)
+        self.assertEqual(524288, last_piece_length)
 
 
 if __name__ == '__main__':

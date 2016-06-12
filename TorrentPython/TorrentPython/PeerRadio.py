@@ -29,7 +29,7 @@ class PeerRadio(Subject):
             except socket.timeout:
                 pass
             except:
-                owner.completed()
+                owner.out_complete()
 
     def __init__(self, client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
         super(PeerRadio, self).__init__()
@@ -43,6 +43,9 @@ class PeerRadio(Subject):
         self.remain = b''
         self.chock = True
         self.bitfield = None
+
+    def __del__(self):
+        self.cleanup()
 
     def cleanup(self):
         if self.sock is not None:
@@ -63,27 +66,31 @@ class PeerRadio(Subject):
             if msg is None:
                 break
             else:
-                self.next(msg)
+                self.out_next(msg)
 
         self.remain = buf
 
-    def next(self, msg: Message):
-        self.on_next(msg)
-
+    def out_next(self, msg: Message):
         if msg.id == Message.CHOCK:
             self.chock = True
+            self.on_next(msg)
 
         if msg.id == Message.UNCHOCK:
             self.chock = False
             self.interested()
+            self.on_next(msg)
+
+        if msg.id == Message.PIECE:
+            self.on_next(msg)
 
         if msg.id == Message.BITFIELD:
             self.bitfield = msg
+            self.on_next(msg)
 
         if msg.id == Message.CANCEL:
-            self.completed()
+            self.out_complete()
 
-    def completed(self):
+    def out_complete(self):
         self.cleanup()
         self.on_completed()
 
@@ -118,16 +125,23 @@ class PeerRadio(Subject):
         self.sock.send(KeepAlive.getBytes())
 
     def interested(self):
+        if self.chock:
+            return False
+
         self.sock.send(Interested.getBytes())
-
-    def request(self, index, begin, length=BLOCK_SIZE):
-        if index < 0 or index >= self.metainfo.getInfoPieceNum():
-            return False
-
-        if begin < 0 or begin >= self.metainfo.getInfoPieceLength():
-            return False
-
-        self.sock.send(Request.getBytes(index, begin, length))
         return True
+
+    def request(self, index, begin, length):
+        if self.chock:
+            return False
+
+        if length <= 0:
+            return False
+
+        self.sock.send(Request.getBytes(index, begin, PeerRadio.BLOCK_SIZE))
+        return True
+
+    def have(self, index):
+        self.sock.send(Have.getBytes(index))
 
 
