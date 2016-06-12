@@ -8,8 +8,8 @@ from TorrentPython.PeerMessage import *
 
 
 class PeerRadio(Subject):
-    SOCKET_TIMEOUT = 10
-    KEEP_ALIVE_TIMEOUT = 5
+    SOCKET_TIMEOUT = 3
+    KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
@@ -23,11 +23,13 @@ class PeerRadio(Subject):
 
     @staticmethod
     def recvThread(owner):
+        timeout_counter = 0
         while True:
             try:
                 owner.handle(owner.recv(PeerRadio.BUFFER_SIZE))
+                timeout_counter = 0
             except socket.timeout:
-                pass
+                timeout_counter += 1
             except:
                 owner.out_complete()
 
@@ -58,6 +60,13 @@ class PeerRadio(Subject):
 
     def recv(self, buffersize):
         return self.sock.recv(buffersize)
+
+    def send(self, buf):
+        try:
+            self.sock.send(buf)
+            return True
+        except:
+            return False
 
     def handle(self, buf):
         buf = self.remain + buf
@@ -122,14 +131,13 @@ class PeerRadio(Subject):
         return True
 
     def keepAlive(self):
-        self.sock.send(KeepAlive.getBytes())
+        return self.send(KeepAlive.getBytes())
 
     def interested(self):
         if self.chock:
             return False
 
-        self.sock.send(Interested.getBytes())
-        return True
+        return self.send(Interested.getBytes())
 
     def request(self, index, begin, length):
         if self.chock:
@@ -138,10 +146,9 @@ class PeerRadio(Subject):
         if length <= 0:
             return False
 
-        self.sock.send(Request.getBytes(index, begin, PeerRadio.BLOCK_SIZE))
-        return True
+        return self.send(Request.getBytes(index, begin, PeerRadio.BLOCK_SIZE))
 
     def have(self, index):
-        self.sock.send(Have.getBytes(index))
+        return self.send(Have.getBytes(index))
 
 

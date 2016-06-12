@@ -80,7 +80,7 @@ class Message(object):
         message_len = struct.unpack('!I', buf[Message.LEN_OFFSET:Message.LEN_SIZE])[0]
         if message_len is 0:
             message_id = None
-            message_buf = None
+            message_buf = buf[:4]
         else:
             if len(buf) < Message.LEN_SIZE + message_len:
                 return None
@@ -327,7 +327,6 @@ class Cancel(Message):
 
     def __repr__(self):
         return 'Cancel'
-
 
 class Port(Message):
     pass

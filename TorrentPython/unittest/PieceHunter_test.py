@@ -1,5 +1,4 @@
 import unittest
-import time
 
 from TorrentPython.PieceHunter import *
 from TorrentPython.TorrentUtils import *
@@ -20,7 +19,6 @@ class PeerRadioTest(unittest.TestCase):
         self.assertIsNotNone(self.metainfo)
         self.peer_ip = TRANSMISSION_IP
         self.peer_port = TRANSMISSION_PORT
-
         pass
 
     def tearDown(self):
@@ -41,24 +39,23 @@ class PeerRadioTest(unittest.TestCase):
 
         class PrizeObserver(Observer):
             def on_next(self, msg):
-                if msg[0] == 0:
-                    self.assertEqual(SAMPLE_BUF_64_BYTES_OF_PIECE_0, msg[1][:64])
+                self.assertEqual(SAMPLE_BUF_64_BYTES_OF_PIECE_0, msg[1][:64])
 
             def on_completed(self):
                 print('on_completed')
                 endEvent.set()
 
-            def on_error(self):
-                print('on_error')
+            def on_error(self, e):
+                print(e)
                 endEvent.set()
 
-        prize = testObj.hunt(PrizeObserver, [0, 1], 10)
+        prize = testObj.hunt(PrizeObserver, [0], 10, 5)
         self.assertIsNotNone(prize)
 
         endEvent.wait()
         del testObj
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_hunt_beta(self):
         endEvent = Event()
 
@@ -68,7 +65,7 @@ class PeerRadioTest(unittest.TestCase):
         class PrizeObserver(Observer):
             def __init__(self, event):
                 self.endEvent = event
-                self.fp = open('ubuntu.iso', 'wb')
+                self.fp = open('D:/ubuntu.iso', 'wb')
 
             def on_next(self, msg):
                 print(msg[0])
@@ -85,7 +82,37 @@ class PeerRadioTest(unittest.TestCase):
                 self.endEvent.set()
 
         piece_indices = [i for i in range(0, self.metainfo.getInfoPieceNum())]
-        prize = testObj.hunt(PrizeObserver(endEvent), piece_indices, 10)
+        prize = testObj.hunt(PrizeObserver(endEvent), piece_indices, 10, 5)
+        self.assertIsNotNone(prize)
+
+        endEvent.wait()
+
+        print(testObj.average_performance)
+        del testObj
+
+    @unittest.skip("clear")
+    def test_on_error_delay_timeout(self):
+        endEvent = Event()
+
+        testObj = PieceHunter.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+        self.assertIsNotNone(testObj)
+
+        class PrizeObserver(Observer):
+            def __init__(self, event):
+                self.endEvent = event
+
+            def on_next(self, msg):
+                print(msg[0])
+
+            def on_completed(self):
+                print('on_completed')
+                endEvent.set()
+
+            def on_error(self, e):
+                print(e)
+                endEvent.set()
+
+        prize = testObj.hunt(PrizeObserver(endEvent), [1300], 10, 10)
         self.assertIsNotNone(prize)
 
         endEvent.wait()
