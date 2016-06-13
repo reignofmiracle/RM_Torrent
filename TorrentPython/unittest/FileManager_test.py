@@ -2,7 +2,7 @@ import unittest
 
 from TorrentPython.FileManager import *
 
-TORRENT_PATH = '../Resources/sample.torrent'
+TORRENT_PATH = '../Resources/root.torrent'
 
 
 class FileManagerTest(unittest.TestCase):
@@ -15,8 +15,8 @@ class FileManagerTest(unittest.TestCase):
 
     # @unittest.skip("wait")
     def test_buildCastle(self):
-        testObj = FileManager(self.metainfo, 'D:/sandbox/castle/')
-        self.assertTrue(testObj.buildCastle(clear=True))
+        testObj = FileManager(self.metainfo, 'D:/sandbox/')
+        self.assertTrue(testObj.buildCastle())
         pass
 
 if __name__ == '__main__':
