@@ -5,7 +5,7 @@ from TorrentPython.TorrentUtils import *
 
 TORRENT_PATH = '../Resources/sample.torrent'
 
-TRANSMISSION_IP = '192.168.0.11'
+TRANSMISSION_IP = '192.168.10.11'
 TRANSMISSION_PORT = 51413
 
 SAMPLE_BUF_64_BYTES_OF_PIECE_0 = b'ER\x08\x00\x00\x00\x90\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x003\xed\xfa\x8e\xd5\xbc\x00|\xfb\xfcf1\xdbf1\xc9fSfQ\x06W\x8e\xdd\x8e\xc5R\xbe\x00|\xbf\x00'
@@ -55,7 +55,7 @@ class PeerRadioTest(unittest.TestCase):
         endEvent.wait()
         del testObj
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_hunt_beta(self):
         endEvent = Event()
 
