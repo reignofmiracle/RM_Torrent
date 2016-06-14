@@ -55,7 +55,7 @@ class PeerRadioTest(unittest.TestCase):
         endEvent.wait()
         del testObj
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_hunt_beta(self):
         endEvent = Event()
 
@@ -81,7 +81,7 @@ class PeerRadioTest(unittest.TestCase):
                 self.fp.close()
                 self.endEvent.set()
 
-        piece_indices = [i for i in range(0, self.metainfo.getInfoPieceNum())]
+        piece_indices = [i for i in range(0, self.metainfo.getInfo().getPieceNum())]
         prize = testObj.hunt(PrizeObserver(endEvent), piece_indices, 10, 5)
         self.assertIsNotNone(prize)
 

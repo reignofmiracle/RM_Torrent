@@ -49,12 +49,15 @@ class PiecePrize(Subject):
         self.pieceHunter = pieceHunter
         self.peerRadio = pieceHunter.peerRadio
         self.metainfo = pieceHunter.metainfo
+        self.info = self.metainfo.getInfo()
         self.subscribe(piece_observer)
         self.piece_indices = piece_indices
         self.piece_per_step = piece_per_step
         self.timeout = timeout
 
-        self.msgSubscription = self.peerRadio.subscribe(on_next=self.in_next, on_completed=self.in_completed)
+        self.msgSubscription = self.peerRadio.\
+            observe_on(Scheduler.new_thread).\
+            subscribe(on_next=self.in_next, on_completed=self.in_completed)
 
         self.piece_queue = piece_indices.copy()
         self.workingPiece_index = PiecePrize.INVALID_PIECE_INDEX
@@ -106,7 +109,7 @@ class PiecePrize(Subject):
 
             for i in range(0, self.workingStep):
                 index = self.piece_queue[i]
-                piece_length = self.metainfo.getPieceLength(index)
+                piece_length = self.info.getPieceLength_index(index)
 
                 block_num = int(piece_length / PeerRadio.BLOCK_SIZE)
                 block_remain = piece_length % PeerRadio.BLOCK_SIZE
@@ -125,7 +128,7 @@ class PiecePrize(Subject):
                 self.out_error('piece middle error.')
                 return False
 
-            expectLength = self.metainfo.getPieceLength(self.workingPiece_index)
+            expectLength = self.info.getPieceLength_index(self.workingPiece_index)
             if expectLength == len(self.workingPiece):
                 self.out_next((self.workingPiece_index, self.workingPiece))
                 self.piece_queue.remove(self.workingPiece_index)

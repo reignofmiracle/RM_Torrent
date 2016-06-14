@@ -6,6 +6,7 @@
       <w>bencoded</w>
       <w>buffersize</w>
       <w>bufsize</w>
+      <w>dirname</w>
       <w>epos</w>
       <w>metainfo</w>
       <w>npos</w>
@@ -15,7 +16,6 @@
       <w>shaked</w>
       <w>spos</w>
       <w>unchock</w>
-      <w>unchoke</w>
     </words>
   </dictionary>
 </component>

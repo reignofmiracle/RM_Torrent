@@ -41,13 +41,13 @@ class TrackerManager(object):
         print(announce)
 
         params = '?' + urllib.parse.urlencode(
-            {urllib.parse.quote('info_hash') : urllib.parse.quote(self.getInfoHash(), safe='%'),
-             urllib.parse.quote('peer_id') : urllib.parse.quote(self.peer_id, safe='%'),
-             urllib.parse.quote('port') : self.port,
-             urllib.parse.quote('uploaded') : 0,
-             urllib.parse.quote('downloaded') : 0,
-             urllib.parse.quote('left') : 0,
-             urllib.parse.quote('event') : ''},
+            {urllib.parse.quote('info_hash'): urllib.parse.quote(self.getInfoHash(), safe='%'),
+             urllib.parse.quote('peer_id'): urllib.parse.quote(self.peer_id, safe='%'),
+             urllib.parse.quote('port'): self.port,
+             urllib.parse.quote('uploaded'): 0,
+             urllib.parse.quote('downloaded'): 0,
+             urllib.parse.quote('left'): 0,
+             urllib.parse.quote('event'): ''},
             encoding='utf-8', safe='%')
 
         request = urllib.request.Request(announce + params, method='GET')

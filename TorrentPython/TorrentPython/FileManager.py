@@ -6,31 +6,58 @@ from TorrentPython.MetaInfo import *
 
 class FileManager(object):
 
+    @staticmethod
+    def prepareFile(filePath, fileLength):
+        dirname = os.path.dirname(filePath)
+        if not os.path.isdir(dirname):
+            os.makedirs(dirname)
+
+        if os.path.exists(filePath):
+            if os.path.getsize(filePath) == fileLength:
+                return True
+            else:
+                os.remove(filePath)
+
+        with open(filePath, 'wb') as f:
+            f.write(b' ' * fileLength)
+
+        return True
+
+    @staticmethod
+    def prepareContainer(metainfo: MetaInfo, path):
+        if metainfo is None or not os.path.isdir(path):
+            return False
+
+        info = metainfo.getInfo()
+        if info.getFileMode() == BaseInfo.FILE_MODE.SINGLE:
+            filePath = path + '/' + info.getName().decode()
+            return FileManager.prepareFile(filePath, info.getLength())
+
+        else:
+            for file in info.getFiles():
+                filePath = path + info.getName().decode() + '/' + file.getFullPath().decode()
+                if not FileManager.prepareFile(filePath, file.getLength()):
+                    return False
+            return True
+
     def __init__(self, metainfo: MetaInfo, path):
         self.metainfo = metainfo
         self.path = path
+        self.prepared = False
 
-    def checkCastle(self):
-        pass
+    def prepare(self):
+        self.prepared = FileManager.prepareContainer(self.metainfo, self.path)
+        return self.prepared
 
-    def buildCastle(self, clear=False):
-        if not self.fence(clear):
+    def write(self, piece_index, piece_block):
+        if not self.prepared:
             return False
 
         return True
 
-    def fence(self, clear):
-        if os.path.isdir(self.path):
-            if clear:
-                shutil.rmtree(self.path)
-            else:
-                return False
-
-        os.mkdir(self.path)
-        return True
-
-    def write(self, piece: tuple):
-        pass
-
     def getMissingPieceIndices(self):
-        pass
+        info = self.metainfo.getInfo()
+        if info.getFileMode() == BaseInfo.FILE_MODE.SINGLE:
+            pass
+        else:
+            pass

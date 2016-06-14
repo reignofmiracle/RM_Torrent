@@ -1,4 +1,4 @@
-from rx import *
+from rx.core import *
 from rx.subjects import *
 import socket
 from threading import *

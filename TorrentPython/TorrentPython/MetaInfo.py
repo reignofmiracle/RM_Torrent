@@ -1,5 +1,7 @@
+from abc import abstractmethod
 import os
 import hashlib
+from enum import *
 
 from TorrentPython.Bencode import *
 
@@ -13,33 +15,21 @@ class MetaInfo(object):
 
     @staticmethod
     def parseTorrent(torrentPath):
-        if torrentPath is None:
-            return None
-
         if not os.path.exists(torrentPath):
             return None
 
         with open(torrentPath, 'rb') as f:
             source = f.read()
 
-        if source is None:
-            return None
-        
         return Bencode.decode(source)
 
     @staticmethod
     def getInfoHashFromTorrent(torrentPath):
-        if torrentPath is None:
-            return None
-
         if not os.path.exists(torrentPath):
             return None
 
         with open(torrentPath, 'rb') as f:
             source = f.read()
-
-        if source is None:
-            return None
 
         bencoded_info = Bencode.getBencode_Info(source)
         if bencoded_info is None:
@@ -63,31 +53,189 @@ class MetaInfo(object):
         self.metainfo = metainfo
         self.info_hash = info_hash
 
-    def getInfoPieceLength(self):
-        return self.metainfo[b'info'][b'piece length']
+    def getInfo(self):
+        return BaseInfo.create(self.metainfo.get(b'info'))
 
-    def getInfoLength(self):
-        return self.metainfo[b'info'][b'length']
+    def getAnnounce(self):
+        return self.metainfo.get(b'announce')
 
-    def getInfoPieceNum(self):
-        pieceNum = int(self.getInfoLength() / self.getInfoPieceLength())
+    def getAnnounceList(self):
+        return self.metainfo.get(b'announce-list')
 
-        if (self.getInfoLength() % self.getInfoPieceLength()) is not 0:
-            pieceNum += 1
+    def getCreationDate(self):
+        return self.metainfo.get(b'creation date')
 
-        return pieceNum
+    def getComment(self):
+        return self.metainfo.get(b'comment')
+
+    def getCreatedBy(self):
+        return self.metainfo.get(b'created by')
+
+    def getEncoding(self):
+        return self.metainfo.get(b'encoding')
+
+    def getFileMode(self):
+        return BaseInfo.getFileMode(self.metainfo.get(b'info'))
+
+
+class BaseInfo(object):
+
+    @unique
+    class FILE_MODE(Enum):
+        SINGLE = 1
+        MULTI = 2
+
+    @staticmethod
+    def getFileMode(info: dict):
+        if info.get(b'files') is None:
+            return BaseInfo.FILE_MODE.SINGLE
+        else:
+            return BaseInfo.FILE_MODE.MULTI
+
+    @staticmethod
+    def create(info: dict):
+        if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.SINGLE:
+            return SInfo.create(info)
+        else:
+            return MInfo.create(info)
+
+    def __init__(self, info: dict):
+        self.info = info
+
+    def getPieceLength(self):
+        return self.info.get(b'piece length')
+
+    def getPieces(self):
+        return self.info.get(b'pieces')
+
+    @abstractmethod
+    def getLength(self):
+        return NotImplemented
+
+    @abstractmethod
+    def getPieceNum(self):
+        return NotImplemented
 
     def isValidPieceIndex(self, index):
-        return 0 <= index < self.getInfoPieceNum()
+            return 0 <= index < self.getPieceNum()
 
     def isLastPieceIndex(self, index):
-        return index == (self.getInfoPieceNum() - 1)
+        return index == (self.getPieceNum() - 1)
 
     def getLastPieceLength(self):
-        remain = self.getInfoLength() % self.getInfoPieceLength()
-        return remain if remain > 0 else self.getInfoPieceLength()
+        if self.last_piece_length is None:
+            self.last_piece_length = self.getLength() - (self.getPieceNum() - 1) * self.getPieceLength()
 
-    def getPieceLength(self, index):
-        return self.getLastPieceLength() if self.isLastPieceIndex(index) else self.getInfoPieceLength()
+        return self.last_piece_length
+
+    def getPieceLength_index(self, index):
+        return self.getLastPieceLength() if self.isLastPieceIndex(index) else self.getPieceLength()
+
+
+class SInfo(BaseInfo):
+
+    @staticmethod
+    def create(info: dict):
+        if BaseInfo.getFileMode(info) != BaseInfo.FILE_MODE.SINGLE:
+            return None
+        else:
+            return SInfo(info)
+
+    def __init__(self, info: dict):
+        super(SInfo, self).__init__(info)
+        self.file_mode = BaseInfo.FILE_MODE.SINGLE
+        self.piece_num = None
+        self.last_piece_length = None
+
+    def getFileMode(self):
+        return self.file_mode
+
+    def getName(self):
+        return self.info.get(b'name')
+
+    def getLength(self):
+        return self.info.get(b'length')
+
+    def getMD5sum(self):
+        return self.info.get(b'md5sum')
+
+    def getPieceNum(self):
+        if self.piece_num is None:
+            self.piece_num = int(self.getLength() / self.getPieceLength())
+            if self.getLength() % self.getPieceLength() is not 0:
+                self.piece_num += 1
+
+        return self.piece_num
+
+
+class MInfo(BaseInfo):
+
+    class File(object):
+        def __init__(self, file):
+            self.file = file
+
+        def getLength(self):
+            return self.file.get(b'length')
+
+        def getMD5sum(self):
+            return self.file.get(b'md5sum')
+
+        def getPath(self):
+            return self.file.get(b'path')
+
+        def getFullPath(self):
+            fullPath = b''
+            for item in self.getPath():
+                fullPath += (item + b'/')
+            return fullPath[:-1]
+
+    @staticmethod
+    def create(info: dict):
+        if BaseInfo.getFileMode(info) != BaseInfo.FILE_MODE.MULTI:
+            return None
+        else:
+            return MInfo(info)
+
+    def __init__(self, info: dict):
+        super(MInfo, self).__init__(info)
+        self.file_mode = BaseInfo.FILE_MODE.MULTI
+        self.files = self.info.get(b'files')
+        self.length = None
+        self.piece_num = None
+        self.last_piece_length = None
+
+    def getFileMode(self):
+        return self.file_mode
+
+    def getName(self):
+        return self.info.get(b'name')
+
+    def getLength(self):
+        if self.length is None:
+            self.length = 0
+            for file in self.files:
+                self.length += file.get(b'length')
+
+        return self.length
+
+    def getFile(self, index):
+        return MInfo.File(self.files[index]) if 0 <= index < len(self.files) else None
+
+    def getFiles(self):
+        for file in self.files:
+            yield MInfo.File(file)
+
+    def getPieceNum(self):
+        if self.piece_num is None:
+            self.piece_num = int(self.getLength() / self.getPieceLength())
+            if self.getLength() % self.getPieceLength() is not 0:
+                self.piece_num += 1
+
+        return self.piece_num
+
+
+
+
+
 
 
