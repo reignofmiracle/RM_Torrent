@@ -1,13 +1,15 @@
-import unittest
-import time
-from threading import *
+from threading import Event
 
-from TorrentPython.PeerRadio import *
-from TorrentPython.TorrentUtils import *
+import unittest
+from TorrentPython.MetaInfo import MetaInfo
+from TorrentPython.PeerRadio import PeerRadio, Observer
+from TorrentPython.TorrentUtils import TorrentUtils
+
+import time
 
 TORRENT_PATH = '../Resources/sample.torrent'
 
-TRANSMISSION_IP = '192.168.0.6'
+TRANSMISSION_IP = '192.168.10.11'
 TRANSMISSION_PORT = 51413
 
 
@@ -15,7 +17,7 @@ class PeerRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        self.metainfo = MetaInfo.createFromTorrent(TORRENT_PATH)
+        self.metainfo = MetaInfo.create_from_torrent(TORRENT_PATH)
         self.assertIsNotNone(self.metainfo)
         self.peer_ip = TRANSMISSION_IP
         self.peer_port = TRANSMISSION_PORT
@@ -24,50 +26,50 @@ class PeerRadioTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    # @unittest.skip("clear")
-    def test_disconnected(self):
-
-        endEvent = Event()
-
-        testObj = PeerRadio.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+    @unittest.skip("clear")
+    def test_new(self):
+        testObj = PeerRadio(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
 
-        def on_next(msg: Message):
-            print(msg)
-
-            if msg.id == Message.UNCHOCK:
-                testObj.request(0, 0)
-
-        def on_completed():
-            print("completed!")
-            endEvent.set()
-
-        testObj.subscribe(on_next=on_next, on_completed=on_completed)
-        endEvent.wait()
-
+        time.sleep(10)
+        testObj.subscribe(on_completed=lambda: print('on_completed'))
         del testObj
 
-    @unittest.skip("clear")
-    def test_(self):
-        testObj = PeerRadio.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+    @unittest.skip("wait")
+    def test_request(self):
+        testObj = PeerRadio(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+        self.assertIsNotNone(testObj)
+        self.assertTrue(testObj.request(0, 0, 0))
+        del testObj
+
+    # @unittest.skip("wait")
+    def test_get_bitfield(self):
+        endEvent = Event()
+
+        testObj = PeerRadio(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
 
-        def handler(msg: Message):
-            if msg.id == Message.PIECE:
-                print(msg.index, msg.begin)
+        class PeerRadioObserver(Observer):
+            def __init__(self, event):
+                self.endEvent = event
 
-        testObj.subscribe(on_next=handler, on_completed=lambda: print("completed!"))
+            def on_next(self, msg):
+                print(msg[0])
 
-        # time.sleep(10)
-        #
-        # for i in range(0, 1310):
-        #     for j in range(0, 32):
-        #         testObj.request(i, PeerRadio.BLOCK_SIZE * j)
-        #
-        #     if i % 8 == 0:
-        #         time.sleep(1)
+            def on_completed(self):
+                print('on_completed')
+                endEvent.set()
 
-        time.sleep(100000)
+            def on_error(self, e):
+                print(e)
+                endEvent.set()
+
+        testObj.subscribe(PeerRadioObserver(endEvent))
+
+        # bitfield = testObj.get_bitfield()
+        # print(bitfield)
+
+        endEvent.wait()
         del testObj
 
 if __name__ == '__main__':

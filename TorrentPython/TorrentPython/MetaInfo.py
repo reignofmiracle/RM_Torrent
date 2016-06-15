@@ -9,41 +9,33 @@ from TorrentPython.Bencode import *
 class MetaInfo(object):
 
     @staticmethod
-    def parseMagnet(magnetStr):
-        metaInfo = {}
-        return metaInfo, b''  # TODO:
-
-    @staticmethod
-    def parseTorrent(torrentPath):
-        if not os.path.exists(torrentPath):
+    def parse_torrent(path):
+        if not os.path.exists(path):
             return None
 
-        with open(torrentPath, 'rb') as f:
+        with open(path, 'rb') as f:
             source = f.read()
 
         return Bencode.decode(source)
 
     @staticmethod
-    def getInfoHashFromTorrent(torrentPath):
-        if not os.path.exists(torrentPath):
+    def get_info_hash_from_torrent(path):
+        if not os.path.exists(path):
             return None
 
-        with open(torrentPath, 'rb') as f:
+        with open(path, 'rb') as f:
             source = f.read()
 
-        bencoded_info = Bencode.getBencode_Info(source)
-        if bencoded_info is None:
-            return None
-
-        return hashlib.sha1(bencoded_info).digest()
+        bencoded_info = Bencode.get_info_dictionary(source)
+        return hashlib.sha1(bencoded_info).digest() if bencoded_info else None
 
     @staticmethod
-    def createFromTorrent(torrentPath):
-        metainfo = MetaInfo.parseTorrent(torrentPath)
+    def create_from_torrent(torrentPath):
+        metainfo = MetaInfo.parse_torrent(torrentPath)
         if metainfo is None:
             return None
 
-        info_hash = MetaInfo.getInfoHashFromTorrent(torrentPath)
+        info_hash = MetaInfo.get_info_hash_from_torrent(torrentPath)
         if info_hash is None:
             return None
 
@@ -53,13 +45,13 @@ class MetaInfo(object):
         self.metainfo = metainfo
         self.info_hash = info_hash
 
-    def getInfo(self):
+    def get_info(self):
         return BaseInfo.create(self.metainfo.get(b'info'))
 
-    def getAnnounce(self):
+    def get_announce(self):
         return self.metainfo.get(b'announce')
 
-    def getAnnounceList(self):
+    def get_announce_list(self):
         return self.metainfo.get(b'announce-list')
 
     def getCreationDate(self):
@@ -87,17 +79,11 @@ class BaseInfo(object):
 
     @staticmethod
     def getFileMode(info: dict):
-        if info.get(b'files') is None:
-            return BaseInfo.FILE_MODE.SINGLE
-        else:
-            return BaseInfo.FILE_MODE.MULTI
+        return BaseInfo.FILE_MODE.MULTI if info.get(b'files') else BaseInfo.FILE_MODE.SINGLE
 
     @staticmethod
     def create(info: dict):
-        if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.SINGLE:
-            return SInfo.create(info)
-        else:
-            return MInfo.create(info)
+        return SInfo.create(info) if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.SINGLE else MInfo.create(info)
 
     def __init__(self, info: dict):
         self.info = info
@@ -136,10 +122,7 @@ class SInfo(BaseInfo):
 
     @staticmethod
     def create(info: dict):
-        if BaseInfo.getFileMode(info) != BaseInfo.FILE_MODE.SINGLE:
-            return None
-        else:
-            return SInfo(info)
+        return SInfo(info) if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.SINGLE else None
 
     def __init__(self, info: dict):
         super(SInfo, self).__init__(info)
@@ -191,10 +174,7 @@ class MInfo(BaseInfo):
 
     @staticmethod
     def create(info: dict):
-        if BaseInfo.getFileMode(info) != BaseInfo.FILE_MODE.MULTI:
-            return None
-        else:
-            return MInfo(info)
+        return MInfo(info) if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.MULTI else None
 
     def __init__(self, info: dict):
         super(MInfo, self).__init__(info)

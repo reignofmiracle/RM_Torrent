@@ -49,7 +49,7 @@ class PiecePrize(Subject):
         self.pieceHunter = pieceHunter
         self.peerRadio = pieceHunter.peerRadio
         self.metainfo = pieceHunter.metainfo
-        self.info = self.metainfo.getInfo()
+        self.info = self.metainfo.get_info()
         self.subscribe(piece_observer)
         self.piece_indices = piece_indices
         self.piece_per_step = piece_per_step

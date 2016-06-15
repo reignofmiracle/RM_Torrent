@@ -13,8 +13,8 @@ class TrackerManager(object):
 
     @staticmethod
     def CreateFromTorrent(torrentPath):
-        metaInfo = MetaInfo.parseTorrent(torrentPath)
-        bencoded_info = MetaInfo.getInfoHashFromTorrent(torrentPath)
+        metaInfo = MetaInfo.parse_torrent(torrentPath)
+        bencoded_info = MetaInfo.get_info_hash_from_torrent(torrentPath)
         if metaInfo is None or bencoded_info is None:
             return None
 

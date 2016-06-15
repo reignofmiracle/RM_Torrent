@@ -25,28 +25,23 @@ class BencodeTest(unittest.TestCase):
         for key in ret:
             print(key)
 
-        # print(b'created by : ', ret[b'created by'])
-        print(b'creation date : ', ret[b'creation date'])
-        # print(b'encoding : ', ret[b'encoding'])
-        print(b'comment : ', ret[b'comment'].decode('UTF-8'))
-        print(b'announce : ', ret[b'announce'])
-        print(b'announce-list : ', ret[b'announce-list'])
+        print(b'announce : ', ret.get(b'announce'))
+        print(b'announce-list : ', ret.get(b'announce-list'))
+        print(b'creation date : ', ret.get(b'creation date'))
+        print(b'created by : ', ret.get(b'created by'))
+        print(b'comment : ', ret.get(b'comment').decode('UTF-8'))
+        print(b'encoding : ', ret.get(b'encoding'))
 
-        info = ret[b'info']
+        info = ret.get(b'info')
         for key in info:
             if key == b'piece length':
                 print(key, info[key])
             if key == b'length':
                 print(key, info[key])
 
-        # print(b'files : ', info[b'files'])
-        print(b'name : ', info[b'name'].decode('UTF-8'))
-
-        # print(info[b'files'][0][b'path'][0].decode('UTF-8'))
-
     # @unittest.skip("wait")
     def test_getDecoder(self):
-        ret = Bencode.getDecoder(self.source, 0)
+        ret = Bencode.get_decoder(self.source, 0)
         self.assertIsNotNone(ret)
 
     # @unittest.skip("wait")
@@ -89,7 +84,7 @@ class BencodeTest(unittest.TestCase):
 
     # @unittest.skip("wait")
     def test_getInfoBencode(self):
-        ret = Bencode.getBencode_Info(self.source)
+        ret = Bencode.get_info_dictionary(self.source)
         self.assertIsNotNone(ret)
 
     # @unittest.skip("wait")

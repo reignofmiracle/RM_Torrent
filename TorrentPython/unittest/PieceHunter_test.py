@@ -15,7 +15,7 @@ class PeerRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        self.metainfo = MetaInfo.createFromTorrent(TORRENT_PATH)
+        self.metainfo = MetaInfo.create_from_torrent(TORRENT_PATH)
         self.assertIsNotNone(self.metainfo)
         self.peer_ip = TRANSMISSION_IP
         self.peer_port = TRANSMISSION_PORT
@@ -81,7 +81,7 @@ class PeerRadioTest(unittest.TestCase):
                 self.fp.close()
                 self.endEvent.set()
 
-        piece_indices = [i for i in range(0, self.metainfo.getInfo().getPieceNum())]
+        piece_indices = [i for i in range(0, self.metainfo.get_info().getPieceNum())]
         prize = testObj.hunt(PrizeObserver(endEvent), piece_indices, 10, 5)
         self.assertIsNotNone(prize)
 

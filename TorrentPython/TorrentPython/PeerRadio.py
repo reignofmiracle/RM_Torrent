@@ -1,40 +1,33 @@
 from rx.core import *
 from rx.subjects import *
+import pykka
 import socket
-from threading import *
+from threading import Thread
 
 from TorrentPython.MetaInfo import *
 from TorrentPython.PeerMessage import *
 
 
-class PeerRadio(Subject):
+class PeerRadioCore(pykka.ThreadingActor):
     SOCKET_TIMEOUT = 3
     KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
     @staticmethod
-    def create(client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
-        ret = PeerRadio(client_id, metainfo, peer_ip, peer_port)
-        if not ret.handshake():
-            return None
-
-        return ret
-
-    @staticmethod
     def recvThread(owner):
-        timeout_counter = 0
         while True:
             try:
-                owner.handle(owner.recv(PeerRadio.BUFFER_SIZE))
-                timeout_counter = 0
+                owner.handle(owner.recv(PeerRadioCore.BUFFER_SIZE))
             except socket.timeout:
-                timeout_counter += 1
+                pass
             except:
-                owner.out_complete()
+                owner.on_completed()
+                break
 
-    def __init__(self, client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
-        super(PeerRadio, self).__init__()
+    def __init__(self, peer_radio, client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
+        super(PeerRadioCore, self).__init__()
+        self.peer_radio = peer_radio
         self.client_id = client_id
         self.metainfo = metainfo
         self.peer_ip = peer_ip
@@ -46,27 +39,35 @@ class PeerRadio(Subject):
         self.chock = True
         self.bitfield = None
 
-    def __del__(self):
-        self.cleanup()
+    def on_start(self):
+        if not self.handshake():
+            self.peer_radio.on_completed()
 
-    def cleanup(self):
-        if self.sock is not None:
+    def on_stop(self):
+        if self.sock:
             self.sock.close()
             self.sock = None
 
-        if self.keepAliveSubscription is not None:
+        if self.keepAliveSubscription:
             self.keepAliveSubscription.dispose()
             self.keepAliveSubscription = None
+
+    def on_receive(self, message):
+        try:
+            func_name = message.get('func_name')
+            args = message.get('args')
+            if func_name and args:
+                return getattr(self, func_name)(*args) if len(args) > 0 else getattr(self, func_name)()
+        except:
+            pass
+
+        return None
 
     def recv(self, buffersize):
         return self.sock.recv(buffersize)
 
     def send(self, buf):
-        try:
-            self.sock.send(buf)
-            return True
-        except:
-            return False
+        return self.sock.send(buf)
 
     def handle(self, buf):
         buf = self.remain + buf
@@ -75,33 +76,31 @@ class PeerRadio(Subject):
             if msg is None:
                 break
             else:
-                self.out_next(msg)
+                self.on_next(msg)
 
         self.remain = buf
 
-    def out_next(self, msg: Message):
+    def on_next(self, msg: Message):
         if msg.id == Message.CHOCK:
-            self.chock = True
-            self.on_next(msg)
+            self.tell({'func_name': 'set_chock', 'args': (True,)})
+            self.peer_radio.on_next(msg)
 
         if msg.id == Message.UNCHOCK:
-            self.chock = False
+            self.tell({'func_name': 'set_chock', 'args': (False,)})
             self.interested()
-            self.on_next(msg)
+            self.peer_radio.on_next(msg)
 
         if msg.id == Message.PIECE:
-            self.on_next(msg)
+            self.peer_radio.on_next(msg)
 
         if msg.id == Message.BITFIELD:
             self.bitfield = msg
-            self.on_next(msg)
 
         if msg.id == Message.CANCEL:
-            self.out_complete()
+            self.peer_radio.on_completed()
 
-    def out_complete(self):
-        self.cleanup()
-        self.on_completed()
+    def on_completed(self):
+        self.peer_radio.on_completed()
 
     def handshake(self):
         buf = Handshake.getBytes(self.metainfo.info_hash, self.client_id)
@@ -110,7 +109,7 @@ class PeerRadio(Subject):
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.settimeout(PeerRadio.SOCKET_TIMEOUT)
+            self.sock.settimeout(PeerRadioCore.SOCKET_TIMEOUT)
             self.sock.connect((self.peer_ip, self.peer_port))
             self.sock.send(buf)
             received = self.sock.recv(Handshake.TOTAL_LEN)
@@ -122,9 +121,9 @@ class PeerRadio(Subject):
             return False
 
         self.keepAliveSubscription = Observable.interval(
-            PeerRadio.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
+            PeerRadioCore.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
 
-        th = Thread(target=PeerRadio.recvThread, args=(self,))
+        th = Thread(target=PeerRadioCore.recvThread, args=(self,))
         th.daemon = True
         th.start()
 
@@ -134,21 +133,41 @@ class PeerRadio(Subject):
         return self.send(KeepAlive.getBytes())
 
     def interested(self):
-        if self.chock:
-            return False
-
-        return self.send(Interested.getBytes())
+        return self.send(Interested.getBytes()) if not self.chock else False
 
     def request(self, index, begin, length):
-        if self.chock:
+        if not self.chock and 0 < length <= PeerRadio.BLOCK_SIZE:
+            try:
+                self.send(Request.getBytes(index, begin, PeerRadio.BLOCK_SIZE))
+                return True
+            except:
+                return False
+        else:
             return False
 
-        if length <= 0:
-            return False
+    def get_bitfield(self):
+        return self.bitfield
 
-        return self.send(Request.getBytes(index, begin, PeerRadio.BLOCK_SIZE))
+    def set_chock(self, value):
+        self.chock = value
 
-    def have(self, index):
-        return self.send(Have.getBytes(index))
+
+class PeerRadio(Subject):
+
+    def __init__(self, client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
+        super(PeerRadio, self).__init__()
+        self.core = PeerRadioCore.start(self, client_id, metainfo, peer_ip, peer_port)
+
+    def __del__(self):
+        self.core.stop()
+
+    def request(self, index, begin, length):
+        return self.core.ask({'func_name': 'request', 'args': (index, begin, length)})
+
+    def get_bitfield(self):
+        return self.core.ask({'func_name': 'get_bitfield', 'args': None})
+
+
+
 
 

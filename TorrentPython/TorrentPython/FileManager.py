@@ -28,7 +28,7 @@ class FileManager(object):
         if metainfo is None or not os.path.isdir(path):
             return False
 
-        info = metainfo.getInfo()
+        info = metainfo.get_info()
         if info.getFileMode() == BaseInfo.FILE_MODE.SINGLE:
             filePath = path + '/' + info.getName().decode()
             return FileManager.prepareFile(filePath, info.getLength())
@@ -56,7 +56,7 @@ class FileManager(object):
         return True
 
     def getMissingPieceIndices(self):
-        info = self.metainfo.getInfo()
+        info = self.metainfo.get_info()
         if info.getFileMode() == BaseInfo.FILE_MODE.SINGLE:
             pass
         else:

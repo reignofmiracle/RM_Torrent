@@ -21,16 +21,16 @@ class MetaInfoTest(unittest.TestCase):
         
     @unittest.skip("clear")
     def test_getInfoHashFromTorrent(self):
-        info_hash = MetaInfo.getInfoHashFromTorrent(SAMPLE_TORRENT_PATH)
+        info_hash = MetaInfo.get_info_hash_from_torrent(SAMPLE_TORRENT_PATH)
         self.assertIsNotNone(info_hash)
         print(info_hash)
 
     # @unittest.skip("clear")
     def test_Metainfo(self):
-        metainfo = MetaInfo.createFromTorrent(SAMPLE_TORRENT_PATH)
-        self.assertIsNotNone(metainfo.getInfo())
-        self.assertEqual(b'http://torrent.ubuntu.com:6969/announce', metainfo.getAnnounce())
-        self.assertEqual([[b'http://torrent.ubuntu.com:6969/announce'], [b'http://ipv6.torrent.ubuntu.com:6969/announce']], metainfo.getAnnounceList())
+        metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        self.assertIsNotNone(metainfo.get_info())
+        self.assertEqual(b'http://torrent.ubuntu.com:6969/announce', metainfo.get_announce())
+        self.assertEqual([[b'http://torrent.ubuntu.com:6969/announce'], [b'http://ipv6.torrent.ubuntu.com:6969/announce']], metainfo.get_announce_list())
         self.assertEqual(1461232325, metainfo.getCreationDate())
         self.assertEqual(b'Ubuntu CD releases.ubuntu.com', metainfo.getComment())
         self.assertEqual(None, metainfo.getCreatedBy())
@@ -39,8 +39,8 @@ class MetaInfoTest(unittest.TestCase):
 
     # @unittest.skip("clear")
     def test_SingleFileMode(self):
-        metainfo = MetaInfo.createFromTorrent(SAMPLE_TORRENT_PATH)
-        info = metainfo.getInfo()
+        metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        info = metainfo.get_info()
         self.assertIsNotNone(info)
 
         self.assertEqual(BaseInfo.FILE_MODE.SINGLE, info.getFileMode())
@@ -51,8 +51,8 @@ class MetaInfoTest(unittest.TestCase):
 
     # @unittest.skip("clear")
     def test_MultiFileMode(self):
-        metainfo = MetaInfo.createFromTorrent(ROOT_TORRENT_PATH)
-        info = metainfo.getInfo()
+        metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
+        info = metainfo.get_info()
         self.assertIsNotNone(info)
 
         self.assertEqual(BaseInfo.FILE_MODE.MULTI, info.getFileMode())
