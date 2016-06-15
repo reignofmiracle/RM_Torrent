@@ -9,7 +9,7 @@ from TorrentPython.PeerMessage import *
 
 
 class PeerRadioCore(pykka.ThreadingActor):
-    SOCKET_TIMEOUT = 3
+    SOCKET_TIMEOUT = 5
     KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
@@ -21,7 +21,7 @@ class PeerRadioCore(pykka.ThreadingActor):
                 owner.handle(owner.recv(PeerRadioCore.BUFFER_SIZE))
             except socket.timeout:
                 pass
-            except:
+            except Exception as e:
                 owner.on_completed()
                 break
 
@@ -37,7 +37,6 @@ class PeerRadioCore(pykka.ThreadingActor):
         self.keepAliveSubscription = None
         self.remain = b''
         self.chock = True
-        self.bitfield = None
 
     def on_start(self):
         if not self.handshake():
@@ -53,15 +52,7 @@ class PeerRadioCore(pykka.ThreadingActor):
             self.keepAliveSubscription = None
 
     def on_receive(self, message):
-        try:
-            func_name = message.get('func_name')
-            args = message.get('args')
-            if func_name and args:
-                return getattr(self, func_name)(*args) if len(args) > 0 else getattr(self, func_name)()
-        except:
-            pass
-
-        return None
+        return message.get('func')(self)
 
     def recv(self, buffersize):
         return self.sock.recv(buffersize)
@@ -82,11 +73,11 @@ class PeerRadioCore(pykka.ThreadingActor):
 
     def on_next(self, msg: Message):
         if msg.id == Message.CHOCK:
-            self.tell({'func_name': 'set_chock', 'args': (True,)})
+            self.actor_ref.tell({'func': lambda x: x.set_chock(True)})
             self.peer_radio.on_next(msg)
 
         if msg.id == Message.UNCHOCK:
-            self.tell({'func_name': 'set_chock', 'args': (False,)})
+            self.actor_ref.tell({'func': lambda x: x.set_chock(False)})
             self.interested()
             self.peer_radio.on_next(msg)
 
@@ -94,7 +85,7 @@ class PeerRadioCore(pykka.ThreadingActor):
             self.peer_radio.on_next(msg)
 
         if msg.id == Message.BITFIELD:
-            self.bitfield = msg
+            self.peer_radio.on_next(msg)
 
         if msg.id == Message.CANCEL:
             self.peer_radio.on_completed()
@@ -133,7 +124,7 @@ class PeerRadioCore(pykka.ThreadingActor):
         return self.send(KeepAlive.getBytes())
 
     def interested(self):
-        return self.send(Interested.getBytes()) if not self.chock else False
+        return self.send(Interested.getBytes())
 
     def request(self, index, begin, length):
         if not self.chock and 0 < length <= PeerRadio.BLOCK_SIZE:
@@ -144,9 +135,6 @@ class PeerRadioCore(pykka.ThreadingActor):
                 return False
         else:
             return False
-
-    def get_bitfield(self):
-        return self.bitfield
 
     def set_chock(self, value):
         self.chock = value
@@ -159,15 +147,11 @@ class PeerRadio(Subject):
         self.core = PeerRadioCore.start(self, client_id, metainfo, peer_ip, peer_port)
 
     def __del__(self):
-        self.core.stop()
+        self.clear()
+
+    def clear(self):
+        if self.core.is_alive():
+            self.core.stop()
 
     def request(self, index, begin, length):
-        return self.core.ask({'func_name': 'request', 'args': (index, begin, length)})
-
-    def get_bitfield(self):
-        return self.core.ask({'func_name': 'get_bitfield', 'args': None})
-
-
-
-
-
+        return self.core.ask({'func': lambda x: x.request(index, begin, length)})

@@ -1,4 +1,5 @@
 import unittest
+from threading import Event
 
 from TorrentPython.PieceHunter import *
 from TorrentPython.TorrentUtils import *

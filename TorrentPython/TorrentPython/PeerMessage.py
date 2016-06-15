@@ -179,11 +179,7 @@ class Unchock(Message):
     @staticmethod
     def create(buf: bytes):
         msg = Message.create(buf)
-        if msg.id is not Message.UNCHOCK:
-            return None
-
-        obj = Unchock(msg.len, msg.id, msg.buf)
-        return obj
+        return Unchock(msg.len, msg.id, msg.buf) if msg.id == Message.UNCHOCK else None
 
     def __init__(self, message_len, message_id, message_buf):
         super(Unchock, self).__init__(message_len, message_id, message_buf)

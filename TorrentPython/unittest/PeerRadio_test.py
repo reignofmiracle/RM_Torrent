@@ -1,6 +1,6 @@
+import unittest
 from threading import Event
 
-import unittest
 from TorrentPython.MetaInfo import MetaInfo
 from TorrentPython.PeerRadio import PeerRadio, Observer
 from TorrentPython.TorrentUtils import TorrentUtils
@@ -9,7 +9,7 @@ import time
 
 TORRENT_PATH = '../Resources/sample.torrent'
 
-TRANSMISSION_IP = '192.168.10.11'
+TRANSMISSION_IP = '192.168.0.11'
 TRANSMISSION_PORT = 51413
 
 
@@ -54,7 +54,8 @@ class PeerRadioTest(unittest.TestCase):
                 self.endEvent = event
 
             def on_next(self, msg):
-                print(msg[0])
+                print(msg)
+                endEvent.set()
 
             def on_completed(self):
                 print('on_completed')
@@ -65,11 +66,9 @@ class PeerRadioTest(unittest.TestCase):
                 endEvent.set()
 
         testObj.subscribe(PeerRadioObserver(endEvent))
-
-        # bitfield = testObj.get_bitfield()
-        # print(bitfield)
-
         endEvent.wait()
+
+        testObj.clear()
         del testObj
 
 if __name__ == '__main__':
