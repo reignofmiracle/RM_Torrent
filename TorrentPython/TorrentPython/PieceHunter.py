@@ -1,106 +1,96 @@
+import threading
+
 from TorrentPython.PeerRadio import *
 
-import threading
-import time
 
+class PieceHunterMessage(object):
+    CONNECTED = 'CONNECTED'
+    DISCONNECTED = 'DISCONNECTED'
+    PIECE = 'PIECE'
+    COMPLETED = 'COMPLETED'
+    INTERRUPTED = 'INTERRUPTED'
 
-class PieceHunter(object):
+    def __init__(self, message_id, message_payload):
+        self.id = message_id
+        self.payload = message_payload
 
     @staticmethod
-    def create(client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
-        peerRadio = PeerRadio.create(client_id, metainfo, peer_ip, peer_port)
-        if peerRadio is None:
-            return None
+    def connected():
+        return PeerRadioMessage(PieceHunterMessage.CONNECTED, None)
 
-        return PieceHunter(peerRadio)
+    @staticmethod
+    def disconnected():
+        return PeerRadioMessage(PieceHunterMessage.DISCONNECTED, None)
 
-    def __init__(self, peerRadio: PeerRadio):
-        self.peerRadio = peerRadio
-        self.metainfo = peerRadio.metainfo
-        self.sample_count = 0
-        self.average_performance = 0  # kbps
+    @staticmethod
+    def piece(index, piece):
+        return PeerRadioMessage(PieceHunterMessage.PIECE, (index, piece))
 
-    def __del__(self):
-        if self.peerRadio is not None:
-            del self.peerRadio
-            self.peerRadio = None
+    @staticmethod
+    def completed():
+        return PeerRadioMessage(PieceHunterMessage.COMPLETED, None)
 
-    def hunt(self, piece_observer, piece_indices: list, piece_per_step, timeout):
-        if piece_observer is None or len(piece_indices) == 0 or piece_per_step < 1:
-            return None
-
-        return PiecePrize(self, piece_observer, piece_indices, piece_per_step, timeout)
-
-    def updateScore(self, consuming_time, piece_num):
-        performance = (piece_num * self.metainfo.getInfoPieceLength() / consuming_time) / 1024
-        new_average_performance = (performance + (self.sample_count * self.average_performance)) / (self.sample_count + 1)
-
-        self.sample_count += 1
-        self.average_performance = new_average_performance
+    @staticmethod
+    def interrupted():
+        return PeerRadioMessage(PieceHunterMessage.INTERRUPTED, None)
 
 
-class PiecePrize(Subject):
-
-    PIECE_PER_STEP = 5
+class PieceHunterCore(pykka.ThreadingActor):
     INVALID_PIECE_INDEX = -1
+    PIECE_PER_STEP = 7
 
-    def __init__(self, pieceHunter: PieceHunter, piece_observer, piece_indices: list, piece_per_step, timeout):
-        super(PiecePrize, self).__init__()
-        self.pieceHunter = pieceHunter
-        self.peerRadio = pieceHunter.peerRadio
-        self.metainfo = pieceHunter.metainfo
-        self.info = self.metainfo.get_info()
-        self.subscribe(piece_observer)
-        self.piece_indices = piece_indices
-        self.piece_per_step = piece_per_step
-        self.timeout = timeout
+    def __init__(self, piece_hunter, client_id: bytes, metainfo: MetaInfo):
+        super(PieceHunterCore, self).__init__()
+        self.piece_hunter = piece_hunter
+        self.client_id = client_id
+        self.metainfo = metainfo
+        self.info = metainfo.get_info()
 
-        self.msgSubscription = self.peerRadio.\
-            observe_on(Scheduler.new_thread).\
-            subscribe(on_next=self.in_next, on_completed=self.in_completed)
+        self.peer_radio = PeerRadio(client_id, metainfo)
+        self.peer_radio.subscribe(on_next=self.on_next)
 
-        self.piece_queue = piece_indices.copy()
-        self.workingPiece_index = PiecePrize.INVALID_PIECE_INDEX
-        self.workingPiece = b''
-        self.workingStep = 0
-        self.delayTimer = None
-        self.startTime = time.clock()
-
-        if not self.peerRadio.chock:
-            self.request()
-
-    def __del__(self):
         self.cleanup()
 
     def cleanup(self):
-        if self.msgSubscription is not None:
-            self.msgSubscription.dispose()
-            self.msgSubscription = None
+        self.piece_indices = None
+        self.piece_per_step = PieceHunterCore.PIECE_PER_STEP
+        self.timeout = None
 
-    def in_next(self, msg):
-        if msg.id == Message.UNCHOCK:
-            self.request()
+        self.piece_queue = None
+        self.workingPiece_index = PieceHunterCore.INVALID_PIECE_INDEX
+        self.workingPiece = b''
+        self.workingStep = 0
+        self.delayTimer = None
 
-        if msg.id == Message.PIECE:
-            self.update(msg)
-            self.startDelayTimer()
+    def on_start(self):
+        pass
 
-    def in_completed(self):
-        self.out_error('peer radio off.')
+    def on_stop(self):
+        self.peer_radio.destroy()
+        self.piece_hunter.on_completed()
 
-    def out_next(self, value):
-        self.on_next(value)
+    def on_receive(self, message):
+        return message.get('func')(self)
 
-    def out_completed(self):
-        self.cleanup()
-        self.updateHunter()
-        self.on_completed()
+    def on_next(self, msg):
+        if msg.id == PeerRadioMessage.CONNECTED:
+            self.piece_hunter.on_next(PieceHunterMessage.connected())
 
-    def out_error(self, reason):
-        self.cleanup()
-        self.on_error(Exception(reason))
+        elif msg.id == PeerRadioMessage.DISCONNECTED:
+            self.piece_hunter.on_next(PieceHunterMessage.disconnected())
+
+        elif msg.id == PeerRadioMessage.RECEIVED:
+            payload = msg.payload
+            if payload.id == Message.UNCHOCK:
+                self.actor_ref.tell({'func': lambda x: x.request()})
+
+            elif payload.id == Message.PIECE:
+                self.actor_ref.tell({'func': lambda x: x.update(payload)})
 
     def request(self):
+        if self.peer_radio.getChock():
+            return False
+
         if len(self.piece_queue) > 0:
             if int(len(self.piece_queue) / self.piece_per_step) > 0:
                 self.workingStep = self.piece_per_step
@@ -111,16 +101,16 @@ class PiecePrize(Subject):
                 index = self.piece_queue[i]
                 piece_length = self.info.getPieceLength_index(index)
 
-                block_num = int(piece_length / PeerRadio.BLOCK_SIZE)
-                block_remain = piece_length % PeerRadio.BLOCK_SIZE
+                block_num = int(piece_length / PeerRadioCore.BLOCK_SIZE)
+                block_remain = piece_length % PeerRadioCore.BLOCK_SIZE
                 for j in range(0, block_num):
-                    self.peerRadio.request(index, j * PeerRadio.BLOCK_SIZE, PeerRadio.BLOCK_SIZE)
+                    self.peer_radio.request(index, j * PeerRadioCore.BLOCK_SIZE, PeerRadioCore.BLOCK_SIZE)
                 if block_remain > 0:
-                    self.peerRadio.request(index, block_num * PeerRadio.BLOCK_SIZE, block_remain)
+                    self.peer_radio.request(index, block_num * PeerRadioCore.BLOCK_SIZE, block_remain)
 
-            self.startDelayTimer()
+            self.start_timer()
 
-    def update(self, msg: Piece):
+    def update(self, msg):
         if msg.index == self.workingPiece_index:
             if msg.begin == len(self.workingPiece):
                 self.workingPiece += msg.block
@@ -130,44 +120,94 @@ class PiecePrize(Subject):
 
             expectLength = self.info.getPieceLength_index(self.workingPiece_index)
             if expectLength == len(self.workingPiece):
-                self.out_next((self.workingPiece_index, self.workingPiece))
+                self.piece_hunter.on_next(PieceHunterMessage.piece(self.workingPiece_index, self.workingPiece))
                 self.piece_queue.remove(self.workingPiece_index)
-                self.peerRadio.have(self.workingPiece_index)
-                self.workingPiece_index = PiecePrize.INVALID_PIECE_INDEX
+                self.workingPiece_index = PieceHunterCore.INVALID_PIECE_INDEX
                 self.workingPiece = b''
 
                 if len(self.piece_queue) == 0:
-                    self.out_completed()
+                    self.piece_hunter.on_next(PieceHunterMessage.completed())
+                    self.cleanup()
                 else:
                     self.workingStep -= 1
                     if self.workingStep == 0:
                         self.request()
         else:
-            if self.workingPiece_index == PiecePrize.INVALID_PIECE_INDEX:
+            if self.workingPiece_index == PieceHunterCore.INVALID_PIECE_INDEX:
                 if msg.begin == 0:
                     self.workingPiece_index = msg.index
                     self.workingPiece = msg.block
                 else:
-                    self.out_error('piece beginning error.')
+                    self.piece_hunter.on_next(PieceHunterMessage.interrupted())
+                    self.cleanup()
                     return False
             else:
-                self.out_error('piece unexpected beginning error.')
+                self.piece_hunter.on_next(PieceHunterMessage.interrupted())
+                self.cleanup()
                 return False
 
         return True
 
-    def startDelayTimer(self):
+    def discard(self):
+        self.cleanup()
+        self.piece_hunter.on_next(PieceHunterMessage.interrupted())
+
+    def start_timer(self):
         if self.delayTimer is not None:
             self.delayTimer.cancel()
 
-        self.delayTimer = threading.Timer(self.timeout, self.checkDelayTimeout)
+        self.delayTimer = threading.Timer(self.timeout, self.check_timeout_async)
         self.delayTimer.start()
 
-    def checkDelayTimeout(self):
-        if len(self.piece_queue) > 0:
-            self.out_error('timeout')
+    def check_timeout_async(self):
+        if self.actor_ref.is_alive():
+            self.actor_ref.tell({'func': lambda x: x.check_timeout()})
 
-    def updateHunter(self):
-        consuming_time = time.clock() - self.startTime
-        self.pieceHunter.updateScore(consuming_time, len(self.piece_indices))
+    def check_timeout(self):
+        if len(self.piece_queue) > 0:
+            self.discard()
+
+    def connect(self, peer_ip, peer_port):
+        return self.peer_radio.connect(peer_ip, peer_port)
+
+    def disconnect(self):
+        return self.peer_radio.disconnect()
+
+    def hunt(self, piece_indices: list, piece_per_step, timeout):
+        if self.piece_queue:
+            return False
+
+        self.cleanup()
+
+        self.piece_indices = piece_indices
+        self.piece_per_step = piece_per_step
+        self.timeout = timeout
+
+        self.piece_queue = piece_indices.copy()
+
+        self.request()
+        return True
+
+
+class PieceHunter(Subject):
+
+    def __init__(self, client_id: bytes, metainfo: MetaInfo):
+        super(PieceHunter, self).__init__()
+        self.core = PieceHunterCore.start(self, client_id, metainfo)
+
+    def __del__(self):
+        self.destroy()
+
+    def destroy(self):
+        if self.core.is_alive():
+            self.core.stop()
+
+    def connect(self, peer_ip, peer_port):
+        return self.core.ask({'func': lambda x: x.connect(peer_ip, peer_port)})
+
+    def disconnect(self):
+        return self.core.ask({'func': lambda x: x.disconnect()})
+
+    def hunt(self, piece_indices: list, piece_per_step, timeout):
+        self.core.tell({'func': lambda x: x.hunt(piece_indices, piece_per_step, timeout)})
 

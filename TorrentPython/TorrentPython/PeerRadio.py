@@ -3,9 +3,32 @@ from rx.subjects import *
 import pykka
 import socket
 from threading import Thread
+import logging
 
 from TorrentPython.MetaInfo import *
 from TorrentPython.PeerMessage import *
+
+
+class PeerRadioMessage(object):
+    CONNECTED = 'CONNECTED'
+    DISCONNECTED = 'DISCONNECTED'
+    RECEIVED = 'RECEIVED'
+
+    def __init__(self, message_id, message_payload):
+        self.id = message_id
+        self.payload = message_payload
+
+    @staticmethod
+    def connected():
+        return PeerRadioMessage(PeerRadioMessage.CONNECTED, None)
+
+    @staticmethod
+    def disconnected():
+        return PeerRadioMessage(PeerRadioMessage.DISCONNECTED, None)
+
+    @staticmethod
+    def received(message):
+        return PeerRadioMessage(PeerRadioMessage.RECEIVED, message)
 
 
 class PeerRadioCore(pykka.ThreadingActor):
@@ -22,34 +45,29 @@ class PeerRadioCore(pykka.ThreadingActor):
             except socket.timeout:
                 pass
             except Exception as e:
-                owner.on_completed()
+                logging.debug(e)
+                owner.error()
                 break
 
-    def __init__(self, peer_radio, client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
+    def __init__(self, peer_radio, client_id: bytes, metainfo: MetaInfo):
         super(PeerRadioCore, self).__init__()
         self.peer_radio = peer_radio
         self.client_id = client_id
         self.metainfo = metainfo
-        self.peer_ip = peer_ip
-        self.peer_port = peer_port
 
         self.sock = None
         self.keepAliveSubscription = None
+        self.connected = False
+
         self.remain = b''
         self.chock = True
 
     def on_start(self):
-        if not self.handshake():
-            self.peer_radio.on_completed()
+        pass
 
     def on_stop(self):
-        if self.sock:
-            self.sock.close()
-            self.sock = None
-
-        if self.keepAliveSubscription:
-            self.keepAliveSubscription.dispose()
-            self.keepAliveSubscription = None
+        self.disconnect()
+        self.peer_radio.on_completed()
 
     def on_receive(self, message):
         return message.get('func')(self)
@@ -71,29 +89,39 @@ class PeerRadioCore(pykka.ThreadingActor):
 
         self.remain = buf
 
+    def error(self):
+        if self.actor_ref.is_alive():
+            self.actor_ref.tell({'func': lambda x: x.disconnect()})
+
     def on_next(self, msg: Message):
         if msg.id == Message.CHOCK:
             self.actor_ref.tell({'func': lambda x: x.set_chock(True)})
-            self.peer_radio.on_next(msg)
+            self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
-        if msg.id == Message.UNCHOCK:
-            self.actor_ref.tell({'func': lambda x: x.set_chock(False)})
+        elif msg.id == Message.UNCHOCK:
             self.interested()
-            self.peer_radio.on_next(msg)
+            self.actor_ref.tell({'func': lambda x: x.set_chock(False)})
+            self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
-        if msg.id == Message.PIECE:
-            self.peer_radio.on_next(msg)
+        elif msg.id == Message.PIECE:
+            self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
-        if msg.id == Message.BITFIELD:
-            self.peer_radio.on_next(msg)
+        elif msg.id == Message.BITFIELD:
+            self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
-        if msg.id == Message.CANCEL:
-            self.peer_radio.on_completed()
+    def keepAlive(self):
+        return self.send(KeepAlive.getBytes())
 
-    def on_completed(self):
-        self.peer_radio.on_completed()
+    def interested(self):
+        return self.send(Interested.getBytes())
 
-    def handshake(self):
+    def set_chock(self, value):
+        self.chock = value
+
+    def connect(self, peer_ip, peer_port):
+        if self.connected is True:
+            return False
+
         buf = Handshake.getBytes(self.metainfo.info_hash, self.client_id)
         if buf is None:
             return False
@@ -101,7 +129,7 @@ class PeerRadioCore(pykka.ThreadingActor):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(PeerRadioCore.SOCKET_TIMEOUT)
-            self.sock.connect((self.peer_ip, self.peer_port))
+            self.sock.connect((peer_ip, peer_port))
             self.sock.send(buf)
             received = self.sock.recv(Handshake.TOTAL_LEN)
         except:
@@ -118,40 +146,69 @@ class PeerRadioCore(pykka.ThreadingActor):
         th.daemon = True
         th.start()
 
+        self.connected = True
+        self.remain = b''
+        self.chock = True
+
+        self.peer_radio.on_next(PeerRadioMessage.connected())
         return True
 
-    def keepAlive(self):
-        return self.send(KeepAlive.getBytes())
+    def disconnect(self):
+        if not self.connected:
+            return False
 
-    def interested(self):
-        return self.send(Interested.getBytes())
+        if self.keepAliveSubscription:
+            self.keepAliveSubscription.dispose()
+            self.keepAliveSubscription = None
+
+        if self.sock:
+            self.sock.close()
+            self.sock = None
+
+        self.connected = False
+        self.remain = b''
+        self.chock = True
+
+        self.peer_radio.on_next(PeerRadioMessage.disconnected())
+        return True
 
     def request(self, index, begin, length):
-        if not self.chock and 0 < length <= PeerRadio.BLOCK_SIZE:
+        if not self.connected:
+            return False
+
+        if not self.chock and 0 < length <= PeerRadioCore.BLOCK_SIZE:
             try:
-                self.send(Request.getBytes(index, begin, PeerRadio.BLOCK_SIZE))
+                self.send(Request.getBytes(index, begin, PeerRadioCore.BLOCK_SIZE))
                 return True
             except:
                 return False
         else:
             return False
 
-    def set_chock(self, value):
-        self.chock = value
+    def getChock(self):
+        return self.chock
 
 
 class PeerRadio(Subject):
-
-    def __init__(self, client_id: bytes, metainfo: MetaInfo, peer_ip, peer_port):
+    def __init__(self, client_id: bytes, metainfo: MetaInfo):
         super(PeerRadio, self).__init__()
-        self.core = PeerRadioCore.start(self, client_id, metainfo, peer_ip, peer_port)
+        self.core = PeerRadioCore.start(self, client_id, metainfo)
 
     def __del__(self):
-        self.clear()
+        self.destroy()
 
-    def clear(self):
+    def destroy(self):
         if self.core.is_alive():
             self.core.stop()
 
+    def connect(self, peer_ip, peer_port):
+        return self.core.ask({'func': lambda x: x.connect(peer_ip, peer_port)})
+
+    def disconnect(self):
+        return self.core.ask({'func': lambda x: x.disconnect()})
+
     def request(self, index, begin, length):
         return self.core.ask({'func': lambda x: x.request(index, begin, length)})
+
+    def getChock(self):
+        return self.core.ask({'func': lambda x: x.getChock()})

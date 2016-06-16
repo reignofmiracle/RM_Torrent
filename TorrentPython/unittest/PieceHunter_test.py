@@ -1,4 +1,5 @@
 import unittest
+import time
 from threading import Event
 
 from TorrentPython.PieceHunter import *
@@ -27,96 +28,100 @@ class PeerRadioTest(unittest.TestCase):
 
     @unittest.skip("clear")
     def test_create(self):
-        testObj = PieceHunter.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+        testObj = PieceHunter(self.client_id, self.metainfo)
         self.assertIsNotNone(testObj)
+        testObj.subscribe(lambda x: print(x.id))
+        testObj.destroy()
+        del testObj
+
+    @unittest.skip("clear")
+    def test_connect_disconnect(self):
+        testObj = PieceHunter(self.client_id, self.metainfo)
+        self.assertIsNotNone(testObj)
+        testObj.subscribe(lambda x: print(x.id))
+        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
+        time.sleep(5)
+        testObj.destroy()
         del testObj
 
     @unittest.skip("clear")
     def test_hunt(self):
         endEvent = Event()
 
-        testObj = PieceHunter.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+        testObj = PieceHunter(self.client_id, self.metainfo)
         self.assertIsNotNone(testObj)
 
-        class PrizeObserver(Observer):
+        class PieceHunterObserver(Observer):
+            def __init__(self, event):
+                self.endEvent = event
+
             def on_next(self, msg):
-                self.assertEqual(SAMPLE_BUF_64_BYTES_OF_PIECE_0, msg[1][:64])
+                print(msg.id)
+
+                if msg.id == PieceHunterMessage.PIECE:
+                    print(msg.payload[0])
+
+                if msg.id == PieceHunterMessage.COMPLETED:
+                    self.endEvent.set()
+
+                if msg.id == PieceHunterMessage.INTERRUPTED:
+                    self.endEvent.set()
 
             def on_completed(self):
                 print('on_completed')
-                endEvent.set()
 
             def on_error(self, e):
-                print(e)
-                endEvent.set()
+                pass
 
-        prize = testObj.hunt(PrizeObserver, [0], 10, 5)
-        self.assertIsNotNone(prize)
+        testObj.subscribe(PieceHunterObserver(endEvent))
+        testObj.connect(self.peer_ip, self.peer_port)
+
+        piece_indices = [i for i in range(0, self.metainfo.get_info().getPieceNum())]
+        testObj.hunt(piece_indices, 10, 5)
 
         endEvent.wait()
+
+        testObj.destroy()
         del testObj
 
     # @unittest.skip("clear")
-    def test_hunt_beta(self):
+    def test_hunt_timeout(self):
         endEvent = Event()
 
-        testObj = PieceHunter.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+        testObj = PieceHunter(self.client_id, self.metainfo)
         self.assertIsNotNone(testObj)
 
-        class PrizeObserver(Observer):
-            def __init__(self, event):
-                self.endEvent = event
-                self.fp = open('D:/ubuntu.iso', 'wb')
-
-            def on_next(self, msg):
-                print(msg[0])
-                self.fp .write(msg[1])
-
-            def on_completed(self):
-                print('on_completed')
-                self.fp.close()
-                self.endEvent.set()
-
-            def on_error(self, e):
-                print(e)
-                self.fp.close()
-                self.endEvent.set()
-
-        piece_indices = [i for i in range(0, self.metainfo.get_info().getPieceNum())]
-        prize = testObj.hunt(PrizeObserver(endEvent), piece_indices, 10, 5)
-        self.assertIsNotNone(prize)
-
-        endEvent.wait()
-
-        print(testObj.average_performance)
-        del testObj
-
-    @unittest.skip("clear")
-    def test_on_error_delay_timeout(self):
-        endEvent = Event()
-
-        testObj = PieceHunter.create(self.client_id, self.metainfo, self.peer_ip, self.peer_port)
-        self.assertIsNotNone(testObj)
-
-        class PrizeObserver(Observer):
+        class PieceHunterObserver(Observer):
             def __init__(self, event):
                 self.endEvent = event
 
             def on_next(self, msg):
-                print(msg[0])
+                print(msg.id)
+
+                if msg.id == PieceHunterMessage.PIECE:
+                    print(msg.payload[0])
+
+                if msg.id == PieceHunterMessage.COMPLETED:
+                    self.endEvent.set()
+
+                if msg.id == PieceHunterMessage.INTERRUPTED:
+                    self.endEvent.set()
 
             def on_completed(self):
                 print('on_completed')
-                endEvent.set()
 
             def on_error(self, e):
-                print(e)
-                endEvent.set()
+                pass
 
-        prize = testObj.hunt(PrizeObserver(endEvent), [1300], 10, 10)
-        self.assertIsNotNone(prize)
+        testObj.subscribe(PieceHunterObserver(endEvent))
+        testObj.connect(self.peer_ip, self.peer_port)
+
+        piece_indices = [1404]
+        testObj.hunt(piece_indices, 10, 5)
 
         endEvent.wait()
+
+        testObj.destroy()
         del testObj
 
 if __name__ == '__main__':
