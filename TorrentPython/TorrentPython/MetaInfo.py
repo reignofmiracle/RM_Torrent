@@ -54,20 +54,20 @@ class MetaInfo(object):
     def get_announce_list(self):
         return self.metainfo.get(b'announce-list')
 
-    def getCreationDate(self):
+    def get_creation_date(self):
         return self.metainfo.get(b'creation date')
 
-    def getComment(self):
+    def get_comment(self):
         return self.metainfo.get(b'comment')
 
-    def getCreatedBy(self):
+    def get_created_by(self):
         return self.metainfo.get(b'created by')
 
-    def getEncoding(self):
+    def get_encoding(self):
         return self.metainfo.get(b'encoding')
 
-    def getFileMode(self):
-        return BaseInfo.getFileMode(self.metainfo.get(b'info'))
+    def get_file_mode(self):
+        return BaseInfo.get_file_mode(self.metainfo.get(b'info'))
 
 
 class BaseInfo(object):
@@ -78,51 +78,51 @@ class BaseInfo(object):
         MULTI = 2
 
     @staticmethod
-    def getFileMode(info: dict):
+    def get_file_mode(info: dict):
         return BaseInfo.FILE_MODE.MULTI if info.get(b'files') else BaseInfo.FILE_MODE.SINGLE
 
     @staticmethod
     def create(info: dict):
-        return SInfo.create(info) if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.SINGLE else MInfo.create(info)
+        return SInfo.create(info) if BaseInfo.get_file_mode(info) == BaseInfo.FILE_MODE.SINGLE else MInfo.create(info)
 
     def __init__(self, info: dict):
         self.info = info
 
-    def getPieceLength(self):
+    def get_piece_length(self):
         return self.info.get(b'piece length')
 
-    def getPieces(self):
+    def get_pieces(self):
         return self.info.get(b'pieces')
 
     @abstractmethod
-    def getLength(self):
+    def get_length(self):
         return NotImplemented
 
     @abstractmethod
-    def getPieceNum(self):
+    def get_piece_num(self):
         return NotImplemented
 
-    def isValidPieceIndex(self, index):
-            return 0 <= index < self.getPieceNum()
+    def is_valid_piece_index(self, index):
+            return 0 <= index < self.get_piece_num()
 
-    def isLastPieceIndex(self, index):
-        return index == (self.getPieceNum() - 1)
+    def is_last_piece_index(self, index):
+        return index == (self.get_piece_num() - 1)
 
-    def getLastPieceLength(self):
+    def get_last_piece_length(self):
         if self.last_piece_length is None:
-            self.last_piece_length = self.getLength() - (self.getPieceNum() - 1) * self.getPieceLength()
+            self.last_piece_length = self.get_length() - (self.get_piece_num() - 1) * self.get_piece_length()
 
         return self.last_piece_length
 
-    def getPieceLength_index(self, index):
-        return self.getLastPieceLength() if self.isLastPieceIndex(index) else self.getPieceLength()
+    def get_piece_length_index(self, index):
+        return self.get_last_piece_length() if self.is_last_piece_index(index) else self.get_piece_length()
 
 
 class SInfo(BaseInfo):
 
     @staticmethod
     def create(info: dict):
-        return SInfo(info) if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.SINGLE else None
+        return SInfo(info) if BaseInfo.get_file_mode(info) == BaseInfo.FILE_MODE.SINGLE else None
 
     def __init__(self, info: dict):
         super(SInfo, self).__init__(info)
@@ -130,22 +130,22 @@ class SInfo(BaseInfo):
         self.piece_num = None
         self.last_piece_length = None
 
-    def getFileMode(self):
+    def get_file_mode(self):
         return self.file_mode
 
-    def getName(self):
+    def get_name(self):
         return self.info.get(b'name')
 
-    def getLength(self):
+    def get_length(self):
         return self.info.get(b'length')
 
-    def getMD5sum(self):
+    def get_md5sum(self):
         return self.info.get(b'md5sum')
 
-    def getPieceNum(self):
+    def get_piece_num(self):
         if self.piece_num is None:
-            self.piece_num = int(self.getLength() / self.getPieceLength())
-            if self.getLength() % self.getPieceLength() is not 0:
+            self.piece_num = int(self.get_length() / self.get_piece_length())
+            if self.get_length() % self.get_piece_length() is not 0:
                 self.piece_num += 1
 
         return self.piece_num
@@ -157,24 +157,21 @@ class MInfo(BaseInfo):
         def __init__(self, file):
             self.file = file
 
-        def getLength(self):
+        def get_length(self):
             return self.file.get(b'length')
 
-        def getMD5sum(self):
+        def get_md5sum(self):
             return self.file.get(b'md5sum')
 
-        def getPath(self):
-            return self.file.get(b'path')
-
-        def getFullPath(self):
+        def get_path(self):
             fullPath = b''
-            for item in self.getPath():
+            for item in self.file.get(b'path'):
                 fullPath += (item + b'/')
             return fullPath[:-1]
 
     @staticmethod
     def create(info: dict):
-        return MInfo(info) if BaseInfo.getFileMode(info) == BaseInfo.FILE_MODE.MULTI else None
+        return MInfo(info) if BaseInfo.get_file_mode(info) == BaseInfo.FILE_MODE.MULTI else None
 
     def __init__(self, info: dict):
         super(MInfo, self).__init__(info)
@@ -184,13 +181,13 @@ class MInfo(BaseInfo):
         self.piece_num = None
         self.last_piece_length = None
 
-    def getFileMode(self):
+    def get_file_mode(self):
         return self.file_mode
 
-    def getName(self):
+    def get_name(self):
         return self.info.get(b'name')
 
-    def getLength(self):
+    def get_length(self):
         if self.length is None:
             self.length = 0
             for file in self.files:
@@ -198,17 +195,17 @@ class MInfo(BaseInfo):
 
         return self.length
 
-    def getFile(self, index):
+    def get_file(self, index):
         return MInfo.File(self.files[index]) if 0 <= index < len(self.files) else None
 
-    def getFiles(self):
+    def iter_files(self):
         for file in self.files:
             yield MInfo.File(file)
 
-    def getPieceNum(self):
+    def get_piece_num(self):
         if self.piece_num is None:
-            self.piece_num = int(self.getLength() / self.getPieceLength())
-            if self.getLength() % self.getPieceLength() is not 0:
+            self.piece_num = int(self.get_length() / self.get_piece_length())
+            if self.get_length() % self.get_piece_length() is not 0:
                 self.piece_num += 1
 
         return self.piece_num

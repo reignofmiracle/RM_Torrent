@@ -7,9 +7,10 @@ from TorrentPython.PeerMessage import Message
 from TorrentPython.PeerRadio import PeerRadio, Observer, PeerRadioMessage
 from TorrentPython.TorrentUtils import TorrentUtils
 
-TORRENT_PATH = '../Resources/sample.torrent'
+SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
+ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.10.11'
+TRANSMISSION_IP = '192.168.0.6'
 TRANSMISSION_PORT = 51413
 
 
@@ -17,7 +18,8 @@ class PeerRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        self.metainfo = MetaInfo.create_from_torrent(TORRENT_PATH)
+        # self.metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        self.metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         self.assertIsNotNone(self.metainfo)
         self.peer_ip = TRANSMISSION_IP
         self.peer_port = TRANSMISSION_PORT
@@ -83,7 +85,7 @@ class PeerRadioTest(unittest.TestCase):
                 self.endEvent = event
 
             def on_next(self, msg):
-                print(msg)
+                print(msg.id)
                 if msg.id == PeerRadioMessage.RECEIVED:
                     payload = msg.payload
                     if payload.id == Message.UNCHOCK:

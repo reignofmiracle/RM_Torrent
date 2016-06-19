@@ -57,8 +57,8 @@ class PieceHunterCore(pykka.ThreadingActor):
         self.timeout = None
 
         self.piece_queue = None
-        self.workingPiece_index = PieceHunterCore.INVALID_PIECE_INDEX
-        self.workingPiece = b''
+        self.working_piece_index = PieceHunterCore.INVALID_PIECE_INDEX
+        self.working_piece = b''
         self.workingStep = 0
         self.delayTimer = None
 
@@ -99,7 +99,7 @@ class PieceHunterCore(pykka.ThreadingActor):
 
             for i in range(0, self.workingStep):
                 index = self.piece_queue[i]
-                piece_length = self.info.getPieceLength_index(index)
+                piece_length = self.info.get_piece_length_index(index)
 
                 block_num = int(piece_length / PeerRadioCore.BLOCK_SIZE)
                 block_remain = piece_length % PeerRadioCore.BLOCK_SIZE
@@ -111,19 +111,20 @@ class PieceHunterCore(pykka.ThreadingActor):
             self.start_timer()
 
     def update(self, msg):
-        if msg.index == self.workingPiece_index:
-            if msg.begin == len(self.workingPiece):
-                self.workingPiece += msg.block
+        if msg.index == self.working_piece_index:
+            if msg.begin == len(self.working_piece):
+                self.working_piece += msg.block
             else:
-                self.out_error('piece middle error.')
+                self.piece_hunter.on_next(PieceHunterMessage.interrupted())
+                self.cleanup()
                 return False
 
-            expectLength = self.info.getPieceLength_index(self.workingPiece_index)
-            if expectLength == len(self.workingPiece):
-                self.piece_hunter.on_next(PieceHunterMessage.piece(self.workingPiece_index, self.workingPiece))
-                self.piece_queue.remove(self.workingPiece_index)
-                self.workingPiece_index = PieceHunterCore.INVALID_PIECE_INDEX
-                self.workingPiece = b''
+            expectLength = self.info.get_piece_length_index(self.working_piece_index)
+            if expectLength == len(self.working_piece):
+                self.piece_hunter.on_next(PieceHunterMessage.piece(self.working_piece_index, self.working_piece))
+                self.piece_queue.remove(self.working_piece_index)
+                self.working_piece_index = PieceHunterCore.INVALID_PIECE_INDEX
+                self.working_piece = b''
 
                 if len(self.piece_queue) == 0:
                     self.piece_hunter.on_next(PieceHunterMessage.completed())
@@ -133,10 +134,10 @@ class PieceHunterCore(pykka.ThreadingActor):
                     if self.workingStep == 0:
                         self.request()
         else:
-            if self.workingPiece_index == PieceHunterCore.INVALID_PIECE_INDEX:
+            if self.working_piece_index == PieceHunterCore.INVALID_PIECE_INDEX:
                 if msg.begin == 0:
-                    self.workingPiece_index = msg.index
-                    self.workingPiece = msg.block
+                    self.working_piece_index = msg.index
+                    self.working_piece = msg.block
                 else:
                     self.piece_hunter.on_next(PieceHunterMessage.interrupted())
                     self.cleanup()

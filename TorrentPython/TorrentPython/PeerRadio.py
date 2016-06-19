@@ -208,6 +208,7 @@ class PeerRadio(Subject):
         return self.core.ask({'func': lambda x: x.disconnect()})
 
     def request(self, index, begin, length):
+        print(index, begin, length)
         return self.core.ask({'func': lambda x: x.request(index, begin, length)})
 
     def getChock(self):

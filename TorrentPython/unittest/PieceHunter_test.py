@@ -5,9 +5,10 @@ from threading import Event
 from TorrentPython.PieceHunter import *
 from TorrentPython.TorrentUtils import *
 
-TORRENT_PATH = '../Resources/sample.torrent'
+SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
+ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.10.11'
+TRANSMISSION_IP = '192.168.0.6'
 TRANSMISSION_PORT = 51413
 
 SAMPLE_BUF_64_BYTES_OF_PIECE_0 = b'ER\x08\x00\x00\x00\x90\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x003\xed\xfa\x8e\xd5\xbc\x00|\xfb\xfcf1\xdbf1\xc9fSfQ\x06W\x8e\xdd\x8e\xc5R\xbe\x00|\xbf\x00'
@@ -17,7 +18,8 @@ class PeerRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        self.metainfo = MetaInfo.create_from_torrent(TORRENT_PATH)
+        # self.metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        self.metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         self.assertIsNotNone(self.metainfo)
         self.peer_ip = TRANSMISSION_IP
         self.peer_port = TRANSMISSION_PORT
@@ -44,7 +46,7 @@ class PeerRadioTest(unittest.TestCase):
         testObj.destroy()
         del testObj
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_hunt(self):
         endEvent = Event()
 
@@ -76,7 +78,7 @@ class PeerRadioTest(unittest.TestCase):
         testObj.subscribe(PieceHunterObserver(endEvent))
         testObj.connect(self.peer_ip, self.peer_port)
 
-        piece_indices = [i for i in range(0, self.metainfo.get_info().getPieceNum())]
+        piece_indices = [i for i in range(0, self.metainfo.get_info().get_piece_num())]
         testObj.hunt(piece_indices, 10, 5)
 
         endEvent.wait()
@@ -84,7 +86,7 @@ class PeerRadioTest(unittest.TestCase):
         testObj.destroy()
         del testObj
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_hunt_timeout(self):
         endEvent = Event()
 
