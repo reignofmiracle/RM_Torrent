@@ -178,7 +178,7 @@ class PeerRadioCore(pykka.ThreadingActor):
 
         if not self.chock and 0 < length <= PeerRadioCore.BLOCK_SIZE:
             try:
-                self.send(Request.getBytes(index, begin, PeerRadioCore.BLOCK_SIZE))
+                self.send(Request.getBytes(index, begin, length))
                 return True
             except:
                 return False
@@ -208,7 +208,6 @@ class PeerRadio(Subject):
         return self.core.ask({'func': lambda x: x.disconnect()})
 
     def request(self, index, begin, length):
-        print(index, begin, length)
         return self.core.ask({'func': lambda x: x.request(index, begin, length)})
 
     def getChock(self):

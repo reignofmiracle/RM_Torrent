@@ -10,7 +10,7 @@ from TorrentPython.TorrentUtils import TorrentUtils
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.0.6'
+TRANSMISSION_IP = '192.168.10.11'
 TRANSMISSION_PORT = 51413
 
 
@@ -89,7 +89,7 @@ class PeerRadioTest(unittest.TestCase):
                 if msg.id == PeerRadioMessage.RECEIVED:
                     payload = msg.payload
                     if payload.id == Message.UNCHOCK:
-                        print(testObj.request(0, 0, 1024))
+                        print(testObj.request(383, 0, 16373))
 
                     if payload.id == Message.PIECE:
                         self.endEvent.set()

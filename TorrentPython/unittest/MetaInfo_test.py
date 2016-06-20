@@ -63,7 +63,7 @@ class MetaInfoTest(unittest.TestCase):
         self.assertEqual(16373, info.get_piece_length_index(383))
 
         for file in info.iter_files():
-            print(file.get_length(), file.get_path(), file.get_path())
+            print(file.get_length(), file.get_path())
 
 if __name__ == '__main__':
     unittest.main()

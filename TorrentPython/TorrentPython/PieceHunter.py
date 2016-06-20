@@ -58,7 +58,7 @@ class PieceHunterCore(pykka.ThreadingActor):
 
         self.piece_queue = None
         self.working_piece_index = PieceHunterCore.INVALID_PIECE_INDEX
-        self.working_piece = b''
+        self.working_piece = b''  # rm_notice
         self.workingStep = 0
         self.delayTimer = None
 
@@ -111,43 +111,30 @@ class PieceHunterCore(pykka.ThreadingActor):
             self.start_timer()
 
     def update(self, msg):
-        if msg.index == self.working_piece_index:
-            if msg.begin == len(self.working_piece):
+        if msg.begin == len(self.working_piece):
+            if self.working_piece_index in (msg.index, PieceHunterCore.INVALID_PIECE_INDEX):
+                self.working_piece_index = msg.index
                 self.working_piece += msg.block
-            else:
-                self.piece_hunter.on_next(PieceHunterMessage.interrupted())
-                self.cleanup()
-                return False
 
-            expectLength = self.info.get_piece_length_index(self.working_piece_index)
-            if expectLength == len(self.working_piece):
-                self.piece_hunter.on_next(PieceHunterMessage.piece(self.working_piece_index, self.working_piece))
-                self.piece_queue.remove(self.working_piece_index)
-                self.working_piece_index = PieceHunterCore.INVALID_PIECE_INDEX
-                self.working_piece = b''
+                if self.info.get_piece_length_index(self.working_piece_index) == len(self.working_piece):
+                    self.piece_hunter.on_next(PieceHunterMessage.piece(self.working_piece_index, self.working_piece))
+                    self.piece_queue.remove(self.working_piece_index)
+                    self.working_piece_index = PieceHunterCore.INVALID_PIECE_INDEX
+                    self.working_piece = b''
 
-                if len(self.piece_queue) == 0:
-                    self.piece_hunter.on_next(PieceHunterMessage.completed())
-                    self.cleanup()
-                else:
-                    self.workingStep -= 1
-                    if self.workingStep == 0:
-                        self.request()
-        else:
-            if self.working_piece_index == PieceHunterCore.INVALID_PIECE_INDEX:
-                if msg.begin == 0:
-                    self.working_piece_index = msg.index
-                    self.working_piece = msg.block
-                else:
-                    self.piece_hunter.on_next(PieceHunterMessage.interrupted())
-                    self.cleanup()
-                    return False
-            else:
-                self.piece_hunter.on_next(PieceHunterMessage.interrupted())
-                self.cleanup()
-                return False
+                    if len(self.piece_queue) == 0:
+                        self.piece_hunter.on_next(PieceHunterMessage.completed())
+                        self.cleanup()
+                    else:
+                        self.workingStep -= 1
+                        if self.workingStep == 0:
+                            self.request()
 
-        return True
+                return True
+
+        self.piece_hunter.on_next(PieceHunterMessage.interrupted())
+        self.cleanup()
+        return False
 
     def discard(self):
         self.cleanup()

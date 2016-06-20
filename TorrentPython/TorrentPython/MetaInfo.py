@@ -102,20 +102,18 @@ class BaseInfo(object):
     def get_piece_num(self):
         return NotImplemented
 
-    def is_valid_piece_index(self, index):
-            return 0 <= index < self.get_piece_num()
-
-    def is_last_piece_index(self, index):
-        return index == (self.get_piece_num() - 1)
-
-    def get_last_piece_length(self):
-        if self.last_piece_length is None:
-            self.last_piece_length = self.get_length() - (self.get_piece_num() - 1) * self.get_piece_length()
-
-        return self.last_piece_length
+    def is_valid(self, index):
+        return 0 <= index < self.get_piece_num()
 
     def get_piece_length_index(self, index):
-        return self.get_last_piece_length() if self.is_last_piece_index(index) else self.get_piece_length()
+        if not self.is_valid(index):
+            return 0
+
+        if index == self.get_piece_num() - 1:
+            remain = self.get_length() % self.get_piece_length()
+            return remain if remain else self.get_piece_length()
+        else:
+            return self.get_piece_length()
 
 
 class SInfo(BaseInfo):
@@ -154,7 +152,8 @@ class SInfo(BaseInfo):
 class MInfo(BaseInfo):
 
     class File(object):
-        def __init__(self, file):
+        def __init__(self, owner, file):
+            self.owner = owner
             self.file = file
 
         def get_length(self):
@@ -164,10 +163,13 @@ class MInfo(BaseInfo):
             return self.file.get(b'md5sum')
 
         def get_path(self):
-            fullPath = b''
+            path = b''
             for item in self.file.get(b'path'):
-                fullPath += (item + b'/')
-            return fullPath[:-1]
+                path += (item + b'/')
+            return path[:-1]
+
+        def get_full_path(self):
+            return self.owner.get_name() + b'/' + self.get_path()
 
     @staticmethod
     def create(info: dict):
@@ -196,11 +198,11 @@ class MInfo(BaseInfo):
         return self.length
 
     def get_file(self, index):
-        return MInfo.File(self.files[index]) if 0 <= index < len(self.files) else None
+        return MInfo.File(self, self.files[index]) if 0 <= index < len(self.files) else None
 
     def iter_files(self):
         for file in self.files:
-            yield MInfo.File(file)
+            yield MInfo.File(self, file)
 
     def get_piece_num(self):
         if self.piece_num is None:
