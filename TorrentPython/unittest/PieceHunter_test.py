@@ -1,5 +1,6 @@
 import shutil
 import filecmp
+import random
 
 import unittest
 import time
@@ -47,7 +48,7 @@ class PeerRadioTest(unittest.TestCase):
         testObj.destroy()
         del testObj
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_hunt_M(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         self.assertIsNotNone(metainfo)
@@ -94,6 +95,7 @@ class PeerRadioTest(unittest.TestCase):
         piece_hunter.connect(self.peer_ip, self.peer_port)
 
         piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
+        random.shuffle(piece_indices)
         piece_hunter.hunt(piece_indices, 100, 5)
 
         endEvent.wait()
@@ -108,7 +110,7 @@ class PeerRadioTest(unittest.TestCase):
         piece_hunter.destroy()
         del piece_hunter
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_hunt_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         self.assertIsNotNone(metainfo)
@@ -155,6 +157,7 @@ class PeerRadioTest(unittest.TestCase):
         piece_hunter.connect(self.peer_ip, self.peer_port)
 
         piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
+        random.shuffle(piece_indices)
         piece_hunter.hunt(piece_indices, 10, 5)
 
         endEvent.wait()
