@@ -1,13 +1,13 @@
 import unittest
 import shutil
 
-from TorrentPython.FileManager import *
+from TorrentPython.PieceAssembler import *
 
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
 
-class FileManagerTest(unittest.TestCase):
+class PieceAssemblerTest(unittest.TestCase):
     def setUp(self):
         self.dest_question = 'D:/sandbox/'
         self.dest_answer = 'D:/sandbox2/'
@@ -19,35 +19,35 @@ class FileManagerTest(unittest.TestCase):
     @unittest.skip("clear")
     def test_prepare_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
         pass
 
     @unittest.skip("clear")
     def test_prepare_M(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
         pass
 
     @unittest.skip("wait")
     def test_get_missing_piece_indices_S_F(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertEqual([i for i in range(0, 384)], testObj.get_missing_piece_Indices())
         pass
 
     @unittest.skip("wait")
     def test_get_missing_piece_indices_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertEqual([], testObj.get_missing_piece_Indices())
         pass
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_M_F(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         info = metainfo.get_info()
@@ -57,7 +57,7 @@ class FileManagerTest(unittest.TestCase):
     @unittest.skip("clear")
     def test_get_missing_piece_indices_M_S(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_answer)
+        testObj = PieceAssembler(metainfo, self.dest_answer)
         self.assertTrue(testObj.prepare())
 
         self.assertEqual([], testObj.get_missing_piece_Indices())
@@ -66,7 +66,7 @@ class FileManagerTest(unittest.TestCase):
     @unittest.skip("clear")
     def test_get_missing_piece_indices_S_F(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         info = metainfo.get_info()
@@ -76,7 +76,7 @@ class FileManagerTest(unittest.TestCase):
     @unittest.skip("clear")
     def test_get_missing_piece_indices_S_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = FileManager(metainfo, self.dest_answer)
+        testObj = PieceAssembler(metainfo, self.dest_answer)
         self.assertTrue(testObj.prepare())
         self.assertEqual([], testObj.get_missing_piece_Indices())
         pass
@@ -89,7 +89,7 @@ class FileManagerTest(unittest.TestCase):
         if os.path.isdir(self.dest_question + info.get_name().decode()):
             shutil.rmtree(self.dest_question + info.get_name().decode())
 
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         with open(self.dest_answer + 'root_piece_63.raw', 'rb') as f:
@@ -109,7 +109,7 @@ class FileManagerTest(unittest.TestCase):
             buf_file_1 = f.read()
             self.assertEqual(buf_file_1[:7], piece_63[-7:])
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_write_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         info = metainfo.get_info()
@@ -118,7 +118,7 @@ class FileManagerTest(unittest.TestCase):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        testObj = FileManager(metainfo, self.dest_question)
+        testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         with open(self.dest_answer + 'sample_piece_1309.raw', 'rb') as f:

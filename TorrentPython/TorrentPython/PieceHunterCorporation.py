@@ -1,0 +1,4 @@
+
+
+class PieceHunterCorporation(object):
+    pass

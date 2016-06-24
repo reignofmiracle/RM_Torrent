@@ -6,14 +6,14 @@ import unittest
 import time
 from threading import Event
 
-from TorrentPython.FileManager import *
+from TorrentPython.PieceAssembler import *
 from TorrentPython.PieceHunter import *
 from TorrentPython.TorrentUtils import *
 
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.10.11'
+TRANSMISSION_IP = '192.168.10.7'
 TRANSMISSION_PORT = 51413
 
 
@@ -48,7 +48,7 @@ class PeerRadioTest(unittest.TestCase):
         testObj.destroy()
         del testObj
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_hunt_M(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         self.assertIsNotNone(metainfo)
@@ -57,8 +57,8 @@ class PeerRadioTest(unittest.TestCase):
         if os.path.isdir(self.dest_question + info.get_name().decode()):
             shutil.rmtree(self.dest_question + info.get_name().decode())
 
-        file_manager = FileManager(metainfo, self.dest_question)
-        self.assertTrue(file_manager.prepare())
+        piece_assembler = PieceAssembler(metainfo, self.dest_question)
+        self.assertTrue(piece_assembler.prepare())
 
         endEvent = Event()
 
@@ -77,7 +77,7 @@ class PeerRadioTest(unittest.TestCase):
                 if msg.id == PieceHunterMessage.PIECE:
                     print(msg.payload[0])
                     received_piece_indices.append(msg.payload[0])
-                    file_manager.write(*msg.payload)
+                    piece_assembler.write(*msg.payload)
 
                 if msg.id == PieceHunterMessage.COMPLETED:
                     self.endEvent.set()
@@ -110,7 +110,10 @@ class PeerRadioTest(unittest.TestCase):
         piece_hunter.destroy()
         del piece_hunter
 
-    # @unittest.skip("clear")
+        piece_assembler.destroy()
+        del piece_assembler
+
+    @unittest.skip("clear")
     def test_hunt_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         self.assertIsNotNone(metainfo)
@@ -119,8 +122,8 @@ class PeerRadioTest(unittest.TestCase):
         if os.path.exists(self.dest_question + info.get_name().decode()):
             os.remove(self.dest_question + info.get_name().decode())
 
-        file_manager = FileManager(metainfo, self.dest_question)
-        self.assertTrue(file_manager.prepare())
+        piece_assembler = PieceAssembler(metainfo, self.dest_question)
+        self.assertTrue(piece_assembler.prepare())
 
         endEvent = Event()
 
@@ -139,7 +142,7 @@ class PeerRadioTest(unittest.TestCase):
                 if msg.id == PieceHunterMessage.PIECE:
                     print(msg.payload[0])
                     received_piece_indices.append(msg.payload[0])
-                    file_manager.write(*msg.payload)
+                    piece_assembler.write(*msg.payload)
 
                 if msg.id == PieceHunterMessage.COMPLETED:
                     self.endEvent.set()
@@ -170,6 +173,9 @@ class PeerRadioTest(unittest.TestCase):
 
         piece_hunter.destroy()
         del piece_hunter
+
+        piece_assembler.destroy()
+        del piece_assembler
 
     @unittest.skip("clear")
     def test_hunt_timeout(self):

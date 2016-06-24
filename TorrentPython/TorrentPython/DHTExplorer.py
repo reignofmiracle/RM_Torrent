@@ -1,103 +1,92 @@
 import time
-import types
+import socket
 
-from TorrentPython.DHTService import *
+from TorrentPython.DHTProtocol import *
 
 
 class DHTExplorer(object):
 
-    INITIAL_ROUTING_TABLE = {b'\xeb\xff6isQ\xffJ\xec)\xcd\xba\xab\xf2\xfb\xe3F|\xc2g': ('82.221.103.244', 6881),
-                             b'2\xf5NisQ\xffJ\xec)\xcd\xba\xab\xf2\xfb\xe3F|\xc2g': ('67.215.246.10', 6881)}
-
+    TIMEOUT_SEC = 0.5
     NODE_EXPANSION_SIZE = 7
 
     @staticmethod
-    def findPeers(service: DHTService, routingTable: dict, info_hash: bytes, peerLimit=5, timeLimit=0):
-        if service is None or routingTable is None or info_hash is None:
-            return [], routingTable
-
-        updatedRoutingTable = dict(routingTable)
-        workingTable = dict(routingTable)
-
-        peerLimitChecker = DHTExplorer.generatePeerLimitChecker(peerLimit)
-        timeLimitChecker = DHTExplorer.generateTimeLimitChecker(timeLimit)
-
-        peers = set()
-        while len(workingTable) > 0 and not peerLimitChecker(len(peers)):
-            retPeers, workingTable = DHTExplorer.findPeersFromRoutingTable(
-                service, workingTable, info_hash, peerLimitChecker, timeLimitChecker)
-            peers |= retPeers
-
-            updatedRoutingTable = DHTExplorer.updateRoutingTable(updatedRoutingTable, workingTable, info_hash)
-
-            if timeLimitChecker():
-                break
-
-        return list(peers), updatedRoutingTable
+    def get_peerout(peer_limit):
+        return (lambda a: False) if peer_limit <= 0 else (lambda b: b >= peer_limit)
 
     @staticmethod
-    def findPeersFromRoutingTable(service: DHTService, routingTable: dict, info_hash: bytes,
-                                  peerLimitChecker: types.FunctionType, timeLimitChecker: types.FunctionType):
-        if service is None or routingTable is None or info_hash is None:
-            return set(), routingTable
-
-        if peerLimitChecker is None or timeLimitChecker is None:
-            return set(), routingTable
-
-        peers = set()
-        updatedRoutingTable = {}
-
-        for k in sorted(routingTable):
-            v = routingTable[k]
-            response = service.getPeers((socket.gethostbyname(v[0]), v[1]), info_hash)
-            if response is None or DHTService.isResponseError(response):
-                continue
-
-            if DHTService.isResponsePeers(response):
-                peers = peers.union(DHTService.parsePeers(response))
-                if peerLimitChecker(len(peers)):
-                    break
-            else:
-                updatedRoutingTable.update(DHTService.parseNodes(response))
-
-            if timeLimitChecker():
-                break
-
-        return peers, updatedRoutingTable
+    def get_timeout(time_limit):
+        start_time = time.clock()
+        return (lambda: False) if time_limit <= 0 else (lambda: time.clock() - start_time > time_limit)
 
     @staticmethod
-    def updateRoutingTable(routingTable: dict, workingTable: dict, info_hash: bytes):
-        updatedRoutingTable = dict(routingTable)
+    def update_routing_table(routing_table: dict, working_table: dict, info_hash: bytes):
+        updated_routing_table = dict(routing_table)
 
-        intersect = [key for key in workingTable if key in updatedRoutingTable]
+        intersect = [key for key in working_table if key in updated_routing_table]
         for key in intersect:
-            del workingTable[key]
+            del working_table[key]
 
-        count = 0
-        for key in sorted(workingTable, key=lambda v: bytes((a ^ b) for a, b in zip(info_hash, v))):
-            updatedRoutingTable[key] = workingTable[key]
-
-            count += 1
-            if count >= DHTExplorer.NODE_EXPANSION_SIZE:
+        for index, key in enumerate(sorted(working_table, key=lambda v: bytes((a ^ b) for a, b in zip(info_hash, v)))):
+            updated_routing_table[key] = working_table[key]
+            if index >= DHTExplorer.NODE_EXPANSION_SIZE:
                 break
 
-        return updatedRoutingTable
+        return updated_routing_table
 
-    @staticmethod
-    def generatePeerLimitChecker(peerLimit):
-        if peerLimit <= 0:
-            return lambda v: False
-        else:
-            return lambda v: v >= peerLimit
+    def __init__(self, client_id: bytes, routing_table: dict):
+        self.client_id = client_id
+        self.routing_table = routing_table
 
-    @staticmethod
-    def generateTimeLimitChecker(timeLimit):
-        if timeLimit <= 0:
-            return lambda: False
-        else:
-            sTime = time.clock()
-            return lambda: time.clock() - sTime > timeLimit
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.settimeout(DHTExplorer.TIMEOUT_SEC)
 
+    def __del__(self):
+        self.sock.close()
 
+    def explore(self, info_hash: bytes, peer_limit, time_limit):
+        peerout = DHTExplorer.get_peerout(peer_limit)
+        timeout = DHTExplorer.get_timeout(time_limit)
 
+        updated_routing_table = dict(self.routing_table)
+        working_table = dict(self.routing_table)
+
+        peer_list = set()
+        while len(working_table) > 0 and not peerout(len(peer_list)):
+            p, working_table = self.find_peers(info_hash, working_table, peerout, timeout)
+            peer_list |= p
+
+            updated_routing_table = DHTExplorer.update_routing_table(
+                updated_routing_table, working_table, info_hash)
+
+            if timeout():
+                break
+
+        self.routing_table = updated_routing_table
+
+        return peer_list
+
+    def find_peers(self, info_hash: bytes, routing_table: dict, peerout, timeout):
+        peer_list = set()
+        updated_routing_table = {}
+
+        for k in sorted(routing_table):
+            p, r = self.get_peers(info_hash, *routing_table[k])
+
+            updated_routing_table.update(r)
+            peer_list = peer_list.union(p)
+
+            if peerout(len(peer_list)):
+                break
+
+            if timeout():
+                break
+
+        return peer_list, updated_routing_table
+
+    def get_peers(self, info_hash: bytes, node_ip, node_port):
+        try:
+            self.sock.sendto(DHTProtocol.get_peers(self.client_id, info_hash), (node_ip, node_port))
+            return DHTProtocol.parse_peers(Bencode.decode(self.sock.recv(1024)))
+        except:
+            return [], {}
 

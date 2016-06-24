@@ -1,21 +1,22 @@
+import pykka
 from functools import partial
 
 from TorrentPython.MetaInfo import *
 
 
-class FileManager(object):
+class PieceAssemblerCore(pykka.ThreadingActor):
 
     @staticmethod
     def prepare_file(metainfo: MetaInfo, file_path, file_length):
         dirname = os.path.dirname(file_path)
-        if not os.path.isdir(dirname):
+        if os.path.isdir(dirname):
+            if os.path.exists(file_path):
+                if os.path.getsize(file_path) == file_length:
+                    return True
+                else:
+                    os.remove(file_path)
+        else:
             os.makedirs(dirname)
-
-        if os.path.exists(file_path):
-            if os.path.getsize(file_path) == file_length:
-                return True
-            else:
-                os.remove(file_path)
 
         info = metainfo.get_info()
         piece_length = info.get_piece_length()
@@ -36,12 +37,12 @@ class FileManager(object):
         info = metainfo.get_info()
         if info.get_file_mode() == BaseInfo.FILE_MODE.SINGLE:
             filePath = path + '/' + info.get_name().decode()
-            return FileManager.prepare_file(metainfo, filePath, info.get_length())
+            return PieceAssemblerCore.prepare_file(metainfo, filePath, info.get_length())
 
         else:
             for file in info.iter_files():
                 filePath = path + file.get_full_path().decode()
-                if not FileManager.prepare_file(metainfo, filePath, file.get_length()):
+                if not PieceAssemblerCore.prepare_file(metainfo, filePath, file.get_length()):
                     return False
             return True
 
@@ -117,30 +118,26 @@ class FileManager(object):
             return items
 
     def __init__(self, metainfo: MetaInfo, path):
+        super(PieceAssemblerCore, self).__init__()
         self.metainfo = metainfo
         self.path = path
-        self.prepared = False
+
+    def on_receive(self, message):
+        return message.get('func')(self)
 
     def prepare(self):
-        self.prepared = FileManager.prepare_container(self.metainfo, self.path)
-        return self.prepared
+        return PieceAssemblerCore.prepare_container(self.metainfo, self.path)
 
-    def get_missing_piece_Indices(self):
-        if not self.prepared:
-            return None
-
+    def get_missing_piece_indices(self):
         missing_piece_indices = []
-        for index, piece in enumerate(FileManager.iter_pieces(self.metainfo, self.path)):
-            if not FileManager.verify(self.metainfo, index, piece):
+        for index, piece in enumerate(PieceAssemblerCore.iter_pieces(self.metainfo, self.path)):
+            if not PieceAssemblerCore.verify(self.metainfo, index, piece):
                 missing_piece_indices.append(index)
 
         return missing_piece_indices
 
     def write(self, piece_index, piece_block):
-        if not self.prepared:
-            return None
-
-        coverage_plan = FileManager.get_coverage(self.metainfo, piece_index, piece_block)
+        coverage_plan = PieceAssemblerCore.get_coverage(self.metainfo, piece_index, piece_block)
         if not coverage_plan:
             return False
 
@@ -150,3 +147,24 @@ class FileManager(object):
                 f.write(plan[b'block'])
 
         return True
+
+
+class PieceAssembler(object):
+    def __init__(self, metainfo: MetaInfo, path):
+        self.core = PieceAssemblerCore.start(metainfo, path)
+
+    def __del__(self):
+        self.destroy()
+
+    def destroy(self):
+        if self.core.is_alive():
+            self.core.stop()
+
+    def prepare(self):
+        return self.core.ask({'func': lambda x: x.prepare()})
+
+    def get_missing_piece_indices(self):
+        return self.core.ask({'func': lambda x: x.get_missing_piece_indices()})
+
+    def write(self, piece_index, piece_block):
+        return self.core.ask({'func': lambda x: x.write(piece_index, piece_block)})
