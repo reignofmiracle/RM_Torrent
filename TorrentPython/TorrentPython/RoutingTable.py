@@ -17,3 +17,13 @@ class RoutingTable(object):
     INITIAL_ROUTING_TABLE = {UTORRENT_NODE_ID: UTORRENT_NODE_ADDR,
                              BITTORRENT_NODE_ID: BITTORRENT_NODE_ADDR,
                              TRANSMISSION_NODE_ID: TRANSMISSION_NODE_ADDR}
+
+    @staticmethod
+    def save(routing_table: dict, path):
+        with open(path, 'wb') as f:
+            f.write(str(routing_table).encode())
+
+    @staticmethod
+    def load(path):
+        with open(path, 'rb') as f:
+            return eval(f.read())

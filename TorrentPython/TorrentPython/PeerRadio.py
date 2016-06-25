@@ -31,7 +31,7 @@ class PeerRadioMessage(object):
         return PeerRadioMessage(PeerRadioMessage.RECEIVED, message)
 
 
-class PeerRadioCore(pykka.ThreadingActor):
+class PeerRadioActor(pykka.ThreadingActor):
     SOCKET_TIMEOUT = 5
     KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
@@ -41,7 +41,7 @@ class PeerRadioCore(pykka.ThreadingActor):
     def recvThread(owner):
         while True:
             try:
-                owner.handle(owner.recv(PeerRadioCore.BUFFER_SIZE))
+                owner.handle(owner.recv(PeerRadioActor.BUFFER_SIZE))
             except socket.timeout:
                 pass
             except Exception as e:
@@ -50,7 +50,7 @@ class PeerRadioCore(pykka.ThreadingActor):
                 break
 
     def __init__(self, peer_radio, client_id: bytes, metainfo: MetaInfo):
-        super(PeerRadioCore, self).__init__()
+        super(PeerRadioActor, self).__init__()
         self.peer_radio = peer_radio
         self.client_id = client_id
         self.metainfo = metainfo
@@ -109,7 +109,7 @@ class PeerRadioCore(pykka.ThreadingActor):
         elif msg.id == Message.BITFIELD:
             self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
-    def keepAlive(self):
+    def keep_alive(self):
         return self.send(KeepAlive.getBytes())
 
     def interested(self):
@@ -128,7 +128,7 @@ class PeerRadioCore(pykka.ThreadingActor):
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.settimeout(PeerRadioCore.SOCKET_TIMEOUT)
+            self.sock.settimeout(PeerRadioActor.SOCKET_TIMEOUT)
             self.sock.connect((peer_ip, peer_port))
             self.sock.send(buf)
             received = self.sock.recv(Handshake.TOTAL_LEN)
@@ -140,9 +140,9 @@ class PeerRadioCore(pykka.ThreadingActor):
             return False
 
         self.keepAliveSubscription = Observable.interval(
-            PeerRadioCore.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keepAlive())
+            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keep_alive())
 
-        th = Thread(target=PeerRadioCore.recvThread, args=(self,))
+        th = Thread(target=PeerRadioActor.recvThread, args=(self,))
         th.daemon = True
         th.start()
 
@@ -176,7 +176,7 @@ class PeerRadioCore(pykka.ThreadingActor):
         if not self.connected:
             return False
 
-        if not self.chock and 0 < length <= PeerRadioCore.BLOCK_SIZE:
+        if not self.chock and 0 < length <= PeerRadioActor.BLOCK_SIZE:
             try:
                 self.send(Request.getBytes(index, begin, length))
                 return True
@@ -192,23 +192,23 @@ class PeerRadioCore(pykka.ThreadingActor):
 class PeerRadio(Subject):
     def __init__(self, client_id: bytes, metainfo: MetaInfo):
         super(PeerRadio, self).__init__()
-        self.core = PeerRadioCore.start(self, client_id, metainfo)
+        self.actor = PeerRadioActor.start(self, client_id, metainfo)
 
     def __del__(self):
         self.destroy()
 
     def destroy(self):
-        if self.core.is_alive():
-            self.core.stop()
+        if self.actor.is_alive():
+            self.actor.stop()
 
     def connect(self, peer_ip, peer_port):
-        return self.core.ask({'func': lambda x: x.connect(peer_ip, peer_port)})
+        return self.actor.ask({'func': lambda x: x.connect(peer_ip, peer_port)})
 
     def disconnect(self):
-        return self.core.ask({'func': lambda x: x.disconnect()})
+        return self.actor.ask({'func': lambda x: x.disconnect()})
 
     def request(self, index, begin, length):
-        return self.core.ask({'func': lambda x: x.request(index, begin, length)})
+        return self.actor.ask({'func': lambda x: x.request(index, begin, length)})
 
-    def getChock(self):
-        return self.core.ask({'func': lambda x: x.getChock()})
+    def get_chock(self):
+        return self.actor.ask({'func': lambda x: x.get_chock()})

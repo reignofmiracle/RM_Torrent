@@ -17,7 +17,7 @@ class BencodeTest(unittest.TestCase):
     def tearDown(self):
         pass    
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_decode(self):
         ret = Bencode.decode(self.source)        
         self.assertIsNotNone(ret)
@@ -39,12 +39,12 @@ class BencodeTest(unittest.TestCase):
             if key == b'length':
                 print(key, info[key])
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_getDecoder(self):
         ret = Bencode.get_decoder(self.source, 0)
         self.assertIsNotNone(ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_decode_s(self):
         ret, npos = Bencode.decode_s(b'4:spam', 0)
         self.assertEqual(b'spam', ret)
@@ -52,12 +52,12 @@ class BencodeTest(unittest.TestCase):
         ret, npos = Bencode.decode_s(b'10:abcdefghij', 0)
         self.assertEqual(b'abcdefghij', ret)
         
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_decode_i(self):
         ret, npos = Bencode.decode_i(b'i12314123e', 0)
         self.assertEqual(12314123, ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_decode_l(self):
         ret, npos = Bencode.decode_l(b'l4:spam4:eggse', 0)
         self.assertTrue(type(ret) == list)
@@ -65,7 +65,7 @@ class BencodeTest(unittest.TestCase):
         self.assertEqual(b'spam', ret[0])
         self.assertEqual(b'eggs', ret[1])
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_decode_d(self):
         ret, npos = Bencode.decode_d(b'd3:cow3:moo4:spam4:eggse', 0)
         self.assertTrue(type(ret) == dict)
@@ -82,12 +82,12 @@ class BencodeTest(unittest.TestCase):
         self.assertEqual(b'a', retList[0])
         self.assertEqual(b'b', retList[1])
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_getInfoBencode(self):
         ret = Bencode.get_info_dictionary(self.source)
         self.assertIsNotNone(ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_encode(self):
         dSource = Bencode.decode(self.source)        
         self.assertIsNotNone(dSource)
@@ -97,7 +97,7 @@ class BencodeTest(unittest.TestCase):
 
         self.assertEqual(self.source, ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_encode_s(self):
         sample = b'4:spam'
         ret, npos = Bencode.decode_s(sample, 0)
@@ -106,7 +106,7 @@ class BencodeTest(unittest.TestCase):
         ret = Bencode.encode_s(ret)
         self.assertEqual(sample, ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_encode_i(self):
         sample = b'i12314123e'
         ret, npos = Bencode.decode_i(sample, 0)
@@ -115,7 +115,7 @@ class BencodeTest(unittest.TestCase):
         ret = Bencode.encode_i(ret)
         self.assertEqual(sample, ret)
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_encode_l(self):
         sample = b'l4:spam4:eggse'
         ret, npos = Bencode.decode_l(sample, 0)
@@ -127,7 +127,7 @@ class BencodeTest(unittest.TestCase):
         ret = Bencode.encode_l(ret)
         self.assertEqual(sample, ret)        
 
-    # @unittest.skip("wait")
+    @unittest.skip("clear")
     def test_encode_d(self):
         sample = b'd3:cow3:moo4:spam4:eggse'
         ret, npos = Bencode.decode_d(sample, 0)

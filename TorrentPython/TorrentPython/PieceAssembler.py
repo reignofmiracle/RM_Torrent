@@ -4,7 +4,7 @@ from functools import partial
 from TorrentPython.MetaInfo import *
 
 
-class PieceAssemblerCore(pykka.ThreadingActor):
+class PieceAssemblerActor(pykka.ThreadingActor):
 
     @staticmethod
     def prepare_file(metainfo: MetaInfo, file_path, file_length):
@@ -37,12 +37,12 @@ class PieceAssemblerCore(pykka.ThreadingActor):
         info = metainfo.get_info()
         if info.get_file_mode() == BaseInfo.FILE_MODE.SINGLE:
             filePath = path + '/' + info.get_name().decode()
-            return PieceAssemblerCore.prepare_file(metainfo, filePath, info.get_length())
+            return PieceAssemblerActor.prepare_file(metainfo, filePath, info.get_length())
 
         else:
             for file in info.iter_files():
                 filePath = path + file.get_full_path().decode()
-                if not PieceAssemblerCore.prepare_file(metainfo, filePath, file.get_length()):
+                if not PieceAssemblerActor.prepare_file(metainfo, filePath, file.get_length()):
                     return False
             return True
 
@@ -118,7 +118,7 @@ class PieceAssemblerCore(pykka.ThreadingActor):
             return items
 
     def __init__(self, metainfo: MetaInfo, path):
-        super(PieceAssemblerCore, self).__init__()
+        super(PieceAssemblerActor, self).__init__()
         self.metainfo = metainfo
         self.path = path
 
@@ -126,18 +126,18 @@ class PieceAssemblerCore(pykka.ThreadingActor):
         return message.get('func')(self)
 
     def prepare(self):
-        return PieceAssemblerCore.prepare_container(self.metainfo, self.path)
+        return PieceAssemblerActor.prepare_container(self.metainfo, self.path)
 
     def get_missing_piece_indices(self):
         missing_piece_indices = []
-        for index, piece in enumerate(PieceAssemblerCore.iter_pieces(self.metainfo, self.path)):
-            if not PieceAssemblerCore.verify(self.metainfo, index, piece):
+        for index, piece in enumerate(PieceAssemblerActor.iter_pieces(self.metainfo, self.path)):
+            if not PieceAssemblerActor.verify(self.metainfo, index, piece):
                 missing_piece_indices.append(index)
 
         return missing_piece_indices
 
     def write(self, piece_index, piece_block):
-        coverage_plan = PieceAssemblerCore.get_coverage(self.metainfo, piece_index, piece_block)
+        coverage_plan = PieceAssemblerActor.get_coverage(self.metainfo, piece_index, piece_block)
         if not coverage_plan:
             return False
 
@@ -151,20 +151,20 @@ class PieceAssemblerCore(pykka.ThreadingActor):
 
 class PieceAssembler(object):
     def __init__(self, metainfo: MetaInfo, path):
-        self.core = PieceAssemblerCore.start(metainfo, path)
+        self.actor = PieceAssemblerActor.start(metainfo, path)
 
     def __del__(self):
         self.destroy()
 
     def destroy(self):
-        if self.core.is_alive():
-            self.core.stop()
+        if self.actor.is_alive():
+            self.actor.stop()
 
     def prepare(self):
-        return self.core.ask({'func': lambda x: x.prepare()})
+        return self.actor.ask({'func': lambda x: x.prepare()})
 
     def get_missing_piece_indices(self):
-        return self.core.ask({'func': lambda x: x.get_missing_piece_indices()})
+        return self.actor.ask({'func': lambda x: x.get_missing_piece_indices()})
 
     def write(self, piece_index, piece_block):
-        return self.core.ask({'func': lambda x: x.write(piece_index, piece_block)})
+        return self.actor.ask({'func': lambda x: x.write(piece_index, piece_block)})
