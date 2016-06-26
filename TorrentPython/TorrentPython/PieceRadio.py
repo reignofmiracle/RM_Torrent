@@ -60,7 +60,7 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
         self.working_piece = b''  # rm_notice
         self.workingStep = 0
-        self.delayTimer = None
+        self.delay_timer = None
 
     def on_start(self):
         pass
@@ -141,11 +141,11 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.piece_radio.on_next(PieceRadioMessage.interrupted())
 
     def start_timer(self):
-        if self.delayTimer is not None:
-            self.delayTimer.cancel()
+        if self.delay_timer is not None:
+            self.delay_timer.cancel()
 
-        self.delayTimer = threading.Timer(self.timeout, self.check_timeout_async)
-        self.delayTimer.start()
+        self.delay_timer = threading.Timer(self.timeout, self.check_timeout_async)
+        self.delay_timer.start()
 
     def check_timeout_async(self):
         if self.actor_ref.is_alive():

@@ -1,30 +1,8 @@
-from rx.subjects import *
 import pykka
+from rx.subjects import *
 
 from TorrentPython.DownloadManager import *
 from TorrentPython.RoutingTable import *
-
-
-class DownloaderMessage(object):
-    IDLE = 'IDLE'
-    STATUS = 'STATUS'
-    COMPLETED = 'COMPLETED'
-
-    def __init__(self, message_id, message_payload):
-        self.id = message_id
-        self.payload = message_payload
-
-    @staticmethod
-    def idle():
-        return DownloaderMessage(DownloaderMessage.IDLE, None)
-
-    @staticmethod
-    def status():
-        return DownloaderMessage(DownloaderMessage.STATUS, None)
-
-    @staticmethod
-    def completed():
-        return DownloaderMessage(DownloaderMessage.COMPLETED, None)
 
 
 class DownloaderActor(pykka.ThreadingActor):

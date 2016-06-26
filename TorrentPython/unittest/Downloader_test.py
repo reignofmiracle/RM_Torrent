@@ -10,6 +10,7 @@ ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 
 class DownloaderTest(unittest.TestCase):
     def setUp(self):
+        self.client_id = TorrentUtils.getPeerID()
         self.metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         self.dest = 'D:/sandbox/'
         self.routing_table = RoutingTable.load(ROUTING_TABLE_PATH)
@@ -20,7 +21,7 @@ class DownloaderTest(unittest.TestCase):
 
     # @unittest.skip("wait")
     def test_new(self):
-        testObj = Downloader(TorrentUtils.getPeerID(), self.metainfo, self.dest, self.routing_table)
+        testObj = Downloader(self.client_id, self.metainfo, self.dest, self.routing_table)
 
         testObj.destroy()
         del testObj
