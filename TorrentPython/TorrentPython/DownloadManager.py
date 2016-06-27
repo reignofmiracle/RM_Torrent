@@ -12,7 +12,7 @@ from TorrentPython.DownloadStatus import *
 
 class DownloadManagerActor(pykka.ThreadingActor):
 
-    UPDATE_TIMEOUT = 5  # 5 sec
+    UPDATE_TIMEOUT = 1  # sec
     DOWNLOAD_SPEED_LIMIT = 1024 * 1024 * 10  # 10 MB/s
 
     def __init__(self, downloader_manager, client_id, metainfo, path, routing_table=None):

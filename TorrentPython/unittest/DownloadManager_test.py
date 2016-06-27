@@ -1,8 +1,8 @@
-from threading import Event
+import unittest
 
+from threading import Event
 from rx import *
 
-import unittest
 from TorrentPython.DownloadManager import DownloadManager
 from TorrentPython.MetaInfo import MetaInfo
 from TorrentPython.RoutingTable import RoutingTable
