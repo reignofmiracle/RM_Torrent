@@ -2,6 +2,7 @@ import pykka
 from functools import partial
 
 from TorrentPython.MetaInfo import *
+from TorrentPython.BitfieldExt import *
 
 
 class PieceAssemblerActor(pykka.ThreadingActor):
@@ -128,13 +129,14 @@ class PieceAssemblerActor(pykka.ThreadingActor):
     def prepare(self):
         return PieceAssemblerActor.prepare_container(self.metainfo, self.path)
 
-    def get_missing_piece_indices(self):
-        missing_piece_indices = []
+    def get_bitfield_ext(self):
+        missing_piece_indices = set()
         for index, piece in enumerate(PieceAssemblerActor.iter_pieces(self.metainfo, self.path)):
             if not PieceAssemblerActor.verify(self.metainfo, index, piece):
-                missing_piece_indices.append(index)
+                missing_piece_indices.add(index)
 
-        return missing_piece_indices
+        return BitfieldExt.create_with_missing_piece_indices(
+            self.metainfo.get_info().get_piece_num(), missing_piece_indices)
 
     def write(self, piece_index, piece_block):
         coverage_plan = PieceAssemblerActor.get_coverage(self.metainfo, piece_index, piece_block)
@@ -163,8 +165,8 @@ class PieceAssembler(object):
     def prepare(self):
         return self.actor.ask({'func': lambda x: x.prepare()})
 
-    def get_missing_piece_indices(self):
-        return self.actor.ask({'func': lambda x: x.get_missing_piece_indices()})
+    def get_bitfield_ext(self):
+        return self.actor.ask({'func': lambda x: x.get_bitfield_ext()})
 
     def write(self, piece_index, piece_block):
         return self.actor.ask({'func': lambda x: x.write(piece_index, piece_block)})

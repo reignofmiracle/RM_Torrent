@@ -253,18 +253,6 @@ class Bitfield(Message):
     def __repr__(self):
         return 'Bitfield'
 
-    def have(self, idx):  # start index is "1"
-        if idx < 1 or idx > len(self.bitfield) * 8:
-            return False
-
-        bytePos = int((idx - 1) / 8)
-        bitPos = (idx - 1) % 8
-
-        sourceByte = self.bitfield[bytePos]
-        targetByte = 0x80 >> bitPos
-
-        return (sourceByte & targetByte) is not 0
-
 
 class Request(Message):
     MESSAGE_LEN = 1 + 4 + 4 + 4  # id, index, begin, length
@@ -324,6 +312,6 @@ class Cancel(Message):
     def __repr__(self):
         return 'Cancel'
 
+
 class Port(Message):
     pass
-

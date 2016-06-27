@@ -15,6 +15,7 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
         return message.get('func')(self)
 
     def expand(self):
+        print('expand')
         pass
 
 

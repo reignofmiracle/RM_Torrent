@@ -1,5 +1,6 @@
 import threading
 
+from TorrentPython.BitfieldExt import BitfieldExt
 from TorrentPython.PeerRadio import *
 
 
@@ -52,6 +53,7 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.cleanup()
 
     def cleanup(self):
+        self.bitfield_ext = None
         self.piece_indices = None
         self.piece_per_step = PieceRadioActor.PIECE_PER_STEP
         self.timeout = None
@@ -82,12 +84,15 @@ class PieceRadioActor(pykka.ThreadingActor):
         elif msg.id == PeerRadioMessage.RECEIVED:
             payload = msg.payload
             if payload.id == Message.UNCHOCK:
-                self.actor_ref.tell({'func': lambda x: x.on_request()})
+                self.actor_ref.tell({'func': lambda x: x.request()})
+
+            elif payload.id == Message.BITFIELD:
+                self.bitfield_ext = BitfieldExt.create_with_bitfield_message(payload)
 
             elif payload.id == Message.PIECE:
                 self.actor_ref.tell({'func': lambda x: x.update(payload)})
 
-    def on_request(self):
+    def request(self):
         if self.peer_radio.get_chock():
             return False
 
@@ -128,7 +133,7 @@ class PieceRadioActor(pykka.ThreadingActor):
                     else:
                         self.workingStep -= 1
                         if self.workingStep == 0:
-                            self.on_request()
+                            self.request()
 
                 return True
 
@@ -161,6 +166,9 @@ class PieceRadioActor(pykka.ThreadingActor):
     def disconnect(self):
         return self.peer_radio.disconnect()
 
+    def get_bitfield_ext(self):
+        return self.bitfield_ext
+
     def from_request(self, piece_indices: list, piece_per_step, timeout):
         if self.piece_queue:
             return False
@@ -173,7 +181,7 @@ class PieceRadioActor(pykka.ThreadingActor):
 
         self.piece_queue = piece_indices.copy()
 
-        self.on_request()
+        self.request()
         return True
 
 
@@ -195,6 +203,9 @@ class PieceRadio(Subject):
 
     def disconnect(self):
         return self.actor.ask({'func': lambda x: x.disconnect()})
+
+    def get_bitfield_ext(self):
+        return self.actor.ask({'func': lambda x: x.get_bitfield_ext()})
 
     def request(self, piece_indices: list, piece_per_step, timeout):
         self.actor.tell({'func': lambda x: x.from_request(piece_indices, piece_per_step, timeout)})

@@ -23,8 +23,6 @@ class PeerMessageTest(unittest.TestCase):
         self.assertIsNotNone(msg)
         self.assertEqual(Message.BITFIELD, msg.id)
         self.assertEqual(164, len(msg.bitfield))
-        self.assertTrue(msg.have(1310))
-        self.assertFalse(msg.have(1311))
 
 if __name__ == '__main__':
     unittest.main()
