@@ -8,7 +8,7 @@ from TorrentPython.BitfieldExt import *
 class PieceAssemblerActor(pykka.ThreadingActor):
 
     @staticmethod
-    def prepare_file(metainfo: MetaInfo, file_path, file_length):
+    def prepare_file(info, file_path, file_length):
         dirname = os.path.dirname(file_path)
         if os.path.isdir(dirname):
             if os.path.exists(file_path):
@@ -19,7 +19,6 @@ class PieceAssemblerActor(pykka.ThreadingActor):
         else:
             os.makedirs(dirname)
 
-        info = metainfo.get_info()
         piece_length = info.get_piece_length()
         piece_num = int(file_length / piece_length)
         with open(file_path, 'wb') as f:
@@ -31,25 +30,23 @@ class PieceAssemblerActor(pykka.ThreadingActor):
         return True
 
     @staticmethod
-    def prepare_container(metainfo: MetaInfo, path):
-        if metainfo is None or not os.path.isdir(path):
+    def prepare_container(info, path):
+        if info is None or not os.path.isdir(path):
             return False
 
-        info = metainfo.get_info()
         if info.get_file_mode() == BaseInfo.FILE_MODE.SINGLE:
             filePath = path + '/' + info.get_name().decode()
-            return PieceAssemblerActor.prepare_file(metainfo, filePath, info.get_length())
+            return PieceAssemblerActor.prepare_file(info, filePath, info.get_length())
 
         else:
             for file in info.iter_files():
                 filePath = path + file.get_full_path().decode()
-                if not PieceAssemblerActor.prepare_file(metainfo, filePath, file.get_length()):
+                if not PieceAssemblerActor.prepare_file(info, filePath, file.get_length()):
                     return False
             return True
 
     @staticmethod
-    def iter_pieces(metainfo: MetaInfo, path):
-        info = metainfo.get_info()
+    def iter_pieces(info, path):
         piece_length = info.get_piece_length()
 
         if info.get_file_mode() == BaseInfo.FILE_MODE.SINGLE:
@@ -73,12 +70,11 @@ class PieceAssemblerActor(pykka.ThreadingActor):
                     yield remain
 
     @staticmethod
-    def verify(metainfo: MetaInfo, index, piece):
-        return hashlib.sha1(piece).digest() == metainfo.get_info().get_pieces()[index * 20: index * 20 + 20]
+    def verify(info, index, piece):
+        return hashlib.sha1(piece).digest() == info.get_pieces()[index * 20: index * 20 + 20]
 
     @staticmethod
-    def get_coverage(metainfo: MetaInfo, piece_index, piece_block):
-        info = metainfo.get_info()
+    def get_coverage(info, piece_index, piece_block):
         if not info.is_valid(piece_index) or info.get_piece_length_index(piece_index) != len(piece_block):
             return None
 
@@ -122,24 +118,28 @@ class PieceAssemblerActor(pykka.ThreadingActor):
         super(PieceAssemblerActor, self).__init__()
         self.metainfo = metainfo
         self.path = path
+        self.info = self.metainfo.get_info()
 
     def on_receive(self, message):
         return message.get('func')(self)
 
+    def get_piece_num(self):
+        return self.info.get_piece_num()
+
     def prepare(self):
-        return PieceAssemblerActor.prepare_container(self.metainfo, self.path)
+        return PieceAssemblerActor.prepare_container(self.info, self.path)
 
     def get_bitfield_ext(self):
         missing_piece_indices = set()
-        for index, piece in enumerate(PieceAssemblerActor.iter_pieces(self.metainfo, self.path)):
-            if not PieceAssemblerActor.verify(self.metainfo, index, piece):
+        for index, piece in enumerate(PieceAssemblerActor.iter_pieces(self.info, self.path)):
+            if not PieceAssemblerActor.verify(self.info, index, piece):
                 missing_piece_indices.add(index)
 
         return BitfieldExt.create_with_missing_piece_indices(
-            self.metainfo.get_info().get_piece_num(), missing_piece_indices)
+            self.info.get_piece_num(), missing_piece_indices)
 
     def write(self, piece_index, piece_block):
-        coverage_plan = PieceAssemblerActor.get_coverage(self.metainfo, piece_index, piece_block)
+        coverage_plan = PieceAssemblerActor.get_coverage(self.info, piece_index, piece_block)
         if not coverage_plan:
             return False
 
@@ -161,6 +161,9 @@ class PieceAssembler(object):
     def destroy(self):
         if self.actor.is_alive():
             self.actor.stop()
+
+    def get_piece_num(self):
+        return self.actor.ask({'func': lambda x: x.get_piece_num()})
 
     def prepare(self):
         return self.actor.ask({'func': lambda x: x.prepare()})

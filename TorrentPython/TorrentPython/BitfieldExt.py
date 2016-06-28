@@ -17,7 +17,7 @@ class BitfieldExt(object):
 
     @staticmethod
     def create_with_missing_piece_indices(piece_num, missing_piece_indices: set):
-        if piece_num < 0 or piece_num <= max(missing_piece_indices):
+        if piece_num < 0 or (len(missing_piece_indices) > 0 and piece_num <= max(missing_piece_indices)):
             return None
 
         bitfield = BitfieldExt.create_bitfield(piece_num, lambda index: 0 if index in missing_piece_indices else 1)
@@ -43,28 +43,28 @@ class BitfieldExt(object):
         if index < 0 or index >= len(bitfield) * 8:
             return None
 
-        bytePos = int(index / 8)
-        bitPos = index % 8
+        byte_pos = int(index / 8)
+        bit_pos = index % 8
 
-        sourceByte = bitfield[bytePos]
-        targetByte = 0x80 >> bitPos
+        source_byte = bitfield[byte_pos]
+        target_byte = 0x80 >> bit_pos
 
-        return 1 if sourceByte & targetByte else 0
+        return 1 if source_byte & target_byte else 0
 
     @staticmethod
     def set_value(bitfield, index, value):
         if index < 0 or index >= len(bitfield) * 8:
             return False
 
-        bytePos = int(index / 8)
-        bitPos = index % 8
+        byte_pos = int(index / 8)
+        bit_pos = index % 8
 
         if value == 0:
-            targetByte = ~(0x80 >> bitPos)
-            bitfield[bytePos] &= targetByte
+            target_byte = ~(0x80 >> bit_pos)
+            bitfield[byte_pos] &= target_byte
         else:
-            targetByte = 0x80 >> bitPos
-            bitfield[bytePos] |= targetByte
+            target_byte = 0x80 >> bit_pos
+            bitfield[byte_pos] |= target_byte
 
         return True
 

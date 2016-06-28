@@ -41,7 +41,7 @@ class DownloadManagerTest(unittest.TestCase):
 
             def on_next(self, msg):
                 print(msg)
-                # self.endEvent.set()
+                self.endEvent.set()
 
             def on_completed(self):
                 print('on_completed')

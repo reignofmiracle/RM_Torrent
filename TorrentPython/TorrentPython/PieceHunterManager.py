@@ -1,29 +1,36 @@
 import pykka
 
-from TorrentPython.PieceRadio import PieceRadio
+from TorrentPython.PieceHunter import *
 
 
 class PieceHunterManagerActor(pykka.ThreadingActor):
 
-    def __init__(self, piece_assembler, peer_detective):
+    def __init__(self):
         super(PieceHunterManagerActor, self).__init__()
-        self.piece_assembler = piece_assembler
-        self.peer_detective = peer_detective
-        self.piece_hunters = []
+        self.piece_hunters = set()
+
+    def on_stop(self):
+        for hunter in self.piece_hunters:
+            hunter.destroy()
 
     def on_receive(self, message):
         return message.get('func')(self)
 
-    def expand(self):
-        new_hunters = []
-        self.piece_hunters
-        return new_hunters
+    def size(self):
+        return len(self.piece_hunters)
+
+    def register(self, peer_hunter: PieceHunter):
+        self.piece_hunters.add(peer_hunter)
+
+    def unregister(self, peer_hunter: PieceHunter):
+        self.piece_hunters.remove(peer_hunter)
+        peer_hunter.destroy()
 
 
 class PieceHunterManager(object):
 
-    def __init__(self, piece_assembler, peer_detective):
-        self.core = PieceHunterManagerActor.start(piece_assembler, peer_detective)
+    def __init__(self):
+        self.core = PieceHunterManagerActor.start()
 
     def __del__(self):
         self.destroy()
@@ -32,5 +39,11 @@ class PieceHunterManager(object):
         if self.core.is_alive():
             self.core.stop()
 
-    def expand(self):
-        return self.core.ask({'func': lambda x: x.expand()})
+    def size(self):
+        return self.core.ask({'func': lambda x: x.size()})
+
+    def register(self, piece_hunter: PieceHunter):
+        self.core.tell({'func': lambda x: x.register(piece_hunter)})
+
+    def unregister(self, piece_hunter: PieceHunter):
+        self.core.tell({'func': lambda x: x.unregister(piece_hunter)})

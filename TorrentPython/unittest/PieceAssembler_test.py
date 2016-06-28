@@ -21,6 +21,8 @@ class PieceAssemblerTest(unittest.TestCase):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
+        testObj.destroy()
+        del testObj
         pass
 
     @unittest.skip("clear")
@@ -28,21 +30,28 @@ class PieceAssemblerTest(unittest.TestCase):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         testObj = PieceAssembler(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
+        testObj.destroy()
+        del testObj
         pass
 
     @unittest.skip("wait")
     def test_get_missing_piece_indices_S_F(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         testObj = PieceAssembler(metainfo, self.dest_question)
-        self.assertEqual([i for i in range(0, 384)], testObj.get_missing_piece_Indices())
+        bitfield_ext = testObj.get_bitfield_ext()
+        self.assertEqual([i for i in range(0, 384)], bitfield_ext.get_missing_piece_indices())
+        testObj.destroy()
+        del testObj
         pass
 
     @unittest.skip("wait")
     def test_get_missing_piece_indices_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         testObj = PieceAssembler(metainfo, self.dest_question)
-        self.assertEqual([], testObj.get_missing_piece_Indices())
-        pass
+        bitfield_ext = testObj.get_bitfield_ext()
+        self.assertEqual([], bitfield_ext.get_missing_piece_indices())
+        testObj.destroy()
+        del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_M_F(self):
@@ -51,8 +60,12 @@ class PieceAssemblerTest(unittest.TestCase):
         self.assertTrue(testObj.prepare())
 
         info = metainfo.get_info()
-        self.assertEqual([i for i in range(0, info.get_piece_num())], testObj.get_missing_piece_Indices())
-        pass
+        bitfield_ext = testObj.get_bitfield_ext()
+        missing_piece_indices = bitfield_ext.get_missing_piece_indices()
+        expected = {i for i in range(0, info.get_piece_num())}
+        self.assertEqual(expected, missing_piece_indices)
+        testObj.destroy()
+        del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_M_S(self):
@@ -60,8 +73,10 @@ class PieceAssemblerTest(unittest.TestCase):
         testObj = PieceAssembler(metainfo, self.dest_answer)
         self.assertTrue(testObj.prepare())
 
-        self.assertEqual([], testObj.get_missing_piece_Indices())
-        pass
+        bitfield_ext = testObj.get_bitfield_ext()
+        self.assertEqual(set(), bitfield_ext.get_missing_piece_indices())
+        testObj.destroy()
+        del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_S_F(self):
@@ -70,18 +85,23 @@ class PieceAssemblerTest(unittest.TestCase):
         self.assertTrue(testObj.prepare())
 
         info = metainfo.get_info()
-        self.assertEqual([i for i in range(0, info.get_piece_num())], testObj.get_missing_piece_Indices())
-        pass
+        bitfield_ext = testObj.get_bitfield_ext()
+        self.assertEqual({i for i in range(0, info.get_piece_num())}, bitfield_ext.get_missing_piece_indices())
+        testObj.destroy()
+        del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_S_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         testObj = PieceAssembler(metainfo, self.dest_answer)
         self.assertTrue(testObj.prepare())
-        self.assertEqual([], testObj.get_missing_piece_Indices())
-        pass
 
-    # @unittest.skip("clear")
+        bitfield_ext = testObj.get_bitfield_ext()
+        self.assertEqual(set(), bitfield_ext.get_missing_piece_indices())
+        testObj.destroy()
+        del testObj
+
+    @unittest.skip("clear")
     def test_write_M(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         info = metainfo.get_info()
@@ -109,7 +129,7 @@ class PieceAssemblerTest(unittest.TestCase):
             buf_file_1 = f.read()
             self.assertEqual(buf_file_1[:7], piece_63[-7:])
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_write_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         info = metainfo.get_info()

@@ -6,6 +6,7 @@ import copy
 from TorrentPython.RoutingTable import *
 from TorrentPython.PieceAssembler import *
 from TorrentPython.PeerDetective import *
+from TorrentPython.HuntingScheduler import *
 from TorrentPython.PieceHunterManager import *
 from TorrentPython.DownloadStatus import *
 
@@ -14,6 +15,11 @@ class DownloadManagerActor(pykka.ThreadingActor):
 
     UPDATE_TIMEOUT = 1  # sec
     DOWNLOAD_SPEED_LIMIT = 1024 * 1024 * 10  # 10 MB/s
+
+    FIND_PEER_TIMEOUT = 10  # sec
+
+    PIECE_HUNTER_RECRUIT_SIZE = 5
+    PIECE_HUNTER_SIZE_LIMIT = 50
 
     def __init__(self, downloader_manager, client_id, metainfo, path, routing_table=None):
         super(DownloadManagerActor, self).__init__()
@@ -26,7 +32,8 @@ class DownloadManagerActor(pykka.ThreadingActor):
         self.info = self.metainfo.get_info()
         self.piece_assembler = PieceAssembler(self.metainfo, self.path)
         self.peer_detective = PeerDetective(self.client_id, self.routing_table)
-        self.piece_hunter_manager = PieceHunterManager(self.piece_assembler, self.peer_detective)
+        self.hunting_scheduler = HuntingScheduler(self.download_manager, self.piece_assembler)
+        self.piece_hunter_manager = PieceHunterManager()
 
         self.last_update_time = 0
         self.last_bitfield_ext = None
@@ -40,6 +47,7 @@ class DownloadManagerActor(pykka.ThreadingActor):
     def on_stop(self):
         self.piece_assembler.destroy()
         self.peer_detective.destroy()
+        self.hunting_scheduler.destroy()
         self.piece_hunter_manager.destroy()
 
     def on_receive(self, message):
@@ -47,13 +55,35 @@ class DownloadManagerActor(pykka.ThreadingActor):
 
     def update(self):
         status = self.get_status()
-
-        if not status.bitfield_ext.is_completed():
-            if status.download_speed < DownloadManagerActor.DOWNLOAD_SPEED_LIMIT:
-                self.piece_hunter_manager.expand()
-
+        if self.check_expand(status):
+            self.expand()
         self.download_manager.on_next(status)
         self.next_update()
+
+    def check_expand(self, status):
+        if status.bitfield_ext.is_completed():
+            return False
+
+        if status.download_speed >= DownloadManagerActor.DOWNLOAD_SPEED_LIMIT:
+            return False
+
+        if self.piece_hunter_manager.size() >= DownloadManagerActor.PIECE_HUNTER_SIZE_LIMIT:
+            return False
+
+        return True
+
+    def expand(self):
+        peer_list = self.peer_detective.find_peers(
+            self.metainfo.info_hash,
+            DownloadManagerActor.PIECE_HUNTER_RECRUIT_SIZE,
+            DownloadManagerActor.FIND_PEER_TIMEOUT)
+
+        for peer in peer_list:
+            piece_hunter = PieceHunter.create(self.hunting_scheduler, self.piece_assembler, *peer)
+            if piece_hunter and self.piece_hunter_manager.size() < DownloadManagerActor.PIECE_HUNTER_SIZE_LIMIT:
+                self.piece_hunter_manager.register(piece_hunter)
+
+        return True
 
     def get_status(self):
         current_update_time = time.clock()

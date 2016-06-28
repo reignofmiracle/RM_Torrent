@@ -21,6 +21,12 @@ class DHTExplorerTest(unittest.TestCase):
         pass
 
     @unittest.skip("clear")
+    def test_get_peerout(self):
+        testObj = DHTExplorer.get_peerout(5)
+        self.assertFalse(testObj(4))
+        self.assertTrue(testObj(5))
+
+    @unittest.skip("clear")
     def test_get_peers(self):
         testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
         peer_list, routing_table = testObj.get_peers(self.info_hash, *self.addr)
@@ -30,19 +36,16 @@ class DHTExplorerTest(unittest.TestCase):
         del testObj
 
     # @unittest.skip("clear")
-    def test_explore(self):
+    def test_explore_twice(self):
         testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
-        peer_list = testObj.explore(self.info_hash, 5, 0)
-        self.assertTrue(len(peer_list) > 0)
-        print(peer_list)
-        print(testObj.routing_table)
-        del testObj
 
-    @unittest.skip("clear")
-    def test_get_peerout(self):
-        testObj = DHTExplorer.get_peerout(5)
-        self.assertFalse(testObj(4))
-        self.assertTrue(testObj(5))
+        for i in range(100):
+            print(len(testObj.routing_table), testObj.routing_table)
+            peer_list = testObj.explore(self.info_hash, 5, 0)
+            # self.assertTrue(len(peer_list) > 0)
+            print(len(peer_list), peer_list)
+
+        del testObj
 
 if __name__ == '__main__':
     unittest.main()
