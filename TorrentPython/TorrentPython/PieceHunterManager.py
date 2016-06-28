@@ -20,11 +20,13 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
         return len(self.piece_hunters)
 
     def register(self, peer_hunter: PieceHunter):
-        self.piece_hunters.add(peer_hunter)
+        if peer_hunter:
+            self.piece_hunters.add(peer_hunter)
 
     def unregister(self, peer_hunter: PieceHunter):
-        self.piece_hunters.remove(peer_hunter)
-        peer_hunter.destroy()
+        if peer_hunter:
+            self.piece_hunters.remove(peer_hunter)
+            peer_hunter.destroy()
 
 
 class PieceHunterManager(object):

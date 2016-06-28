@@ -1,5 +1,4 @@
 import pykka
-from enum import Enum
 
 
 class HuntingSchedulerActor(pykka.ThreadingActor):
@@ -20,6 +19,9 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
         return message.get('func')(self)
 
     def scheduling(self, piece_num):
+        return [i for i in range(piece_num)]
+
+    def update_get(self, orders):
         pass
 
     def update_complete(self, orders):
@@ -31,6 +33,7 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
     def get_orders(self, piece_num):
         orders = self.scheduling(piece_num)
         self.update_get(orders)
+        return orders
 
     def complete_orders(self, orders: list):
         self.update_complete(orders)

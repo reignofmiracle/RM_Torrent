@@ -79,8 +79,13 @@ class DownloadManagerActor(pykka.ThreadingActor):
             DownloadManagerActor.FIND_PEER_TIMEOUT)
 
         for peer in peer_list:
-            piece_hunter = PieceHunter.create(self.hunting_scheduler, self.piece_assembler, *peer)
-            if piece_hunter and self.piece_hunter_manager.size() < DownloadManagerActor.PIECE_HUNTER_SIZE_LIMIT:
+            if self.piece_hunter_manager.size() >= DownloadManagerActor.PIECE_HUNTER_SIZE_LIMIT:
+                break
+
+            piece_hunter = PieceHunter.create(
+                self.hunting_scheduler, self.piece_assembler,
+                self.client_id, self.metainfo, *peer)
+            if piece_hunter:
                 self.piece_hunter_manager.register(piece_hunter)
 
         return True
