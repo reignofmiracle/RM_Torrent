@@ -37,6 +37,7 @@ class PieceHunter(Subject):
 
         elif msg.id == PieceRadioMessage.PIECE:
             self.piece_assembler.write(*msg.payload)
+            self.hunting_scheduler.complete_order(msg.payload[0])
 
         elif msg.id == PieceRadioMessage.COMPLETED:
             self.download()

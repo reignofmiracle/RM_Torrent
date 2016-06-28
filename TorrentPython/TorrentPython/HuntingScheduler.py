@@ -1,4 +1,5 @@
 import pykka
+import random
 
 
 class HuntingSchedulerActor(pykka.ThreadingActor):
@@ -7,9 +8,13 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
     PIECE_DOWNLOAD_RUNNING = 1
     PIECE_DOWNLOAD_COMPLETED = 2
 
-    def __init__(self, download_manager, piece_assembler):
+    @staticmethod
+    def select_order(schedule_board: list):
+        candidates = [i for i, v in enumerate(schedule_board) if v == HuntingSchedulerActor.PIECE_DOWNLOAD_NONE]
+        return None if len(candidates) == 0 else random.choice(candidates)
+
+    def __init__(self, piece_assembler):
         super(HuntingSchedulerActor, self).__init__()
-        self.download_manager = download_manager
         self.piece_assembler = piece_assembler
 
         self.schedule_board = \
@@ -18,36 +23,26 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
     def on_receive(self, message):
         return message.get('func')(self)
 
-    def scheduling(self, piece_num):
-        return [i for i in range(piece_num)]
+    def get_order(self):
+        order = HuntingSchedulerActor.select_order(self.schedule_board)
+        if order is not None:
+            self.schedule_board[order] = HuntingSchedulerActor.PIECE_DOWNLOAD_RUNNING
 
-    def update_get(self, orders):
-        pass
+        return order
 
-    def update_complete(self, orders):
-        pass
+    def complete_order(self, order):
+        if self.schedule_board[order] == HuntingSchedulerActor.PIECE_DOWNLOAD_RUNNING:
+            self.schedule_board[order] = HuntingSchedulerActor.PIECE_DOWNLOAD_COMPLETED
 
-    def update_drop(self, orders):
-        pass
-
-    def get_orders(self, piece_num):
-        orders = self.scheduling(piece_num)
-        self.update_get(orders)
-        return orders
-
-    def complete_orders(self, orders: list):
-        self.update_complete(orders)
-        self.download_manager.update()
-
-    def drop_orders(self, orders: list):
-        self.update_drop(orders)
-        self.download_manager.update()
+    def cancel_order(self, order):
+        if self.schedule_board[order] == HuntingSchedulerActor.PIECE_DOWNLOAD_RUNNING:
+            self.schedule_board[order] = HuntingSchedulerActor.PIECE_DOWNLOAD_NONE
 
 
 class HuntingScheduler(object):
 
-    def __init__(self, download_manager, piece_assembler):
-        self.actor = HuntingSchedulerActor.start(download_manager, piece_assembler)
+    def __init__(self, piece_assembler):
+        self.actor = HuntingSchedulerActor.start(piece_assembler)
 
     def __del__(self):
         self.destroy()
@@ -56,12 +51,12 @@ class HuntingScheduler(object):
         if self.actor.is_alive():
             self.actor.stop()
 
-    def get_orders(self, piece_num):
-        return self.actor.ask({'func': lambda x: x.get_orders(piece_num)})
+    def get_order(self):
+        return self.actor.ask({'func': lambda x: x.get_order()})
 
-    def complete_orders(self, orders: list):
-        self.actor.tell({'func': lambda x: x.complete_orders(orders)})
+    def complete_order(self, order):
+        self.actor.tell({'func': lambda x: x.complete_order(order)})
 
-    def drop_orders(self, orders: list):
-        self.actor.tell({'func': lambda x: x.drop_orders(orders)})
+    def cancel_order(self, order):
+        self.actor.tell({'func': lambda x: x.cancel_orders(order)})
 

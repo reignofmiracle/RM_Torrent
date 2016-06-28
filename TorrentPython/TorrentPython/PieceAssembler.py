@@ -119,15 +119,13 @@ class PieceAssemblerActor(pykka.ThreadingActor):
         self.metainfo = metainfo
         self.path = path
         self.info = self.metainfo.get_info()
+        PieceAssemblerActor.prepare_container(self.info, self.path)
 
     def on_receive(self, message):
         return message.get('func')(self)
 
     def get_piece_num(self):
         return self.info.get_piece_num()
-
-    def prepare(self):
-        return PieceAssemblerActor.prepare_container(self.info, self.path)
 
     def get_bitfield_ext(self):
         missing_piece_indices = set()
@@ -164,9 +162,6 @@ class PieceAssembler(object):
 
     def get_piece_num(self):
         return self.actor.ask({'func': lambda x: x.get_piece_num()})
-
-    def prepare(self):
-        return self.actor.ask({'func': lambda x: x.prepare()})
 
     def get_bitfield_ext(self):
         return self.actor.ask({'func': lambda x: x.get_bitfield_ext()})
