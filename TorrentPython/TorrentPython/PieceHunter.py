@@ -5,7 +5,6 @@ from TorrentPython.PieceRadio import *
 
 class PieceHunter(Subject):
 
-    REQUEST_PIECE_NUM = 5
     PIECE_RADIO_TIMEOUT = 5  # sec
 
     def __init__(self, hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port):
@@ -17,6 +16,7 @@ class PieceHunter(Subject):
         self.peer_port = peer_port
 
         self.piece_radio.subscribe(on_next=self.receive, on_completed=self.on_completed)
+        self.piece_radio.connect(self.peer_ip, self.peer_port)
 
     def __del__(self):
         self.destroy()
@@ -24,9 +24,6 @@ class PieceHunter(Subject):
     def destroy(self):
         if self.piece_radio:
             self.piece_radio.destroy()
-
-    def connect(self):
-        self.piece_radio.connect(self.peer_ip, self.peer_port)
 
     def receive(self, msg):
         if msg.id == PieceRadioMessage.CONNECTED:
@@ -46,7 +43,7 @@ class PieceHunter(Subject):
             self.on_completed()
 
     def download(self):
-        orders = self.hunting_scheduler.get_orders(PieceHunter.REQUEST_PIECE_NUM)
-        print(orders)
-        self.piece_radio.request(orders, PieceHunter.REQUEST_PIECE_NUM, PieceHunter.PIECE_RADIO_TIMEOUT)
+        order = self.hunting_scheduler.get_order()
+        print(order)
+        self.piece_radio.request(order, 1, PieceHunter.PIECE_RADIO_TIMEOUT)
 

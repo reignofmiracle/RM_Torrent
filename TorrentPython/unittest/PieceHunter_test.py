@@ -33,13 +33,27 @@ class PieceHunterTest(unittest.TestCase):
         self.hunting_scheduler.destroy()
         self.piece_assembler.destroy()
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_create(self):
         testObj = PieceHunter(
             self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
         testObj.destroy()
         del testObj
+
+    # @unittest.skip("clear")
+    def test_download(self):
+        testObj = PieceHunter(
+            self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, self.peer_ip, self.peer_port)
+        self.assertIsNotNone(testObj)
+
+        testObj.subscribe(on_completed=lambda: print('on_completed'))
+        testObj.download()
+        time.sleep(10)
+
+        testObj.destroy()
+        del \
+            testObj
 
 if __name__ == '__main__':
     unittest.main()
