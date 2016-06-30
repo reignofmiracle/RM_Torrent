@@ -1,3 +1,5 @@
+from threading import Event
+
 import unittest
 from TorrentPython.HuntingScheduler import HuntingScheduler
 
@@ -12,7 +14,7 @@ from TorrentPython.PeerDetective import *
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 
-TRANSMISSION_IP = '192.168.0.5'
+TRANSMISSION_IP = '192.168.10.12'
 TRANSMISSION_PORT = 51413
 
 
@@ -47,13 +49,14 @@ class PieceHunterTest(unittest.TestCase):
             self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
 
-        testObj.subscribe(on_completed=lambda: print('on_completed'))
-        testObj.download()
-        time.sleep(10)
+        endEvent = Event()
+        testObj.subscribe(on_next=lambda x: print(x), on_completed=lambda: endEvent.set())
+        self.assertTrue(testObj.connect())
+        # testObj.download()
 
+        endEvent.wait()
         testObj.destroy()
-        del \
-            testObj
+        del testObj
 
 if __name__ == '__main__':
     unittest.main()

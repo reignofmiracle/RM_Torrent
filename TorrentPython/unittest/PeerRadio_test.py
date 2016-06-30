@@ -10,7 +10,7 @@ from TorrentPython.TorrentUtils import TorrentUtils
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.10.11'
+TRANSMISSION_IP = '192.168.10.12'
 TRANSMISSION_PORT = 51413
 
 

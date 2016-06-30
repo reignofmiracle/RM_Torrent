@@ -1,4 +1,5 @@
 import math
+import struct
 
 from TorrentPython.PeerMessage import Message
 
@@ -67,6 +68,15 @@ class BitfieldExt(object):
             bitfield[byte_pos] |= target_byte
 
         return True
+
+    @staticmethod
+    def create_empty_bitfield_buffer(piece_num):
+        payload_length = math.ceil(piece_num / 8)
+
+        message_len = struct.pack('!I', payload_length + 1)
+        message_id = struct.pack('!B', Message.BITFIELD)
+
+        return message_len + message_id + (b' ' * payload_length)
 
     def __init__(self, piece_num, bitfield):
         self.piece_num = piece_num

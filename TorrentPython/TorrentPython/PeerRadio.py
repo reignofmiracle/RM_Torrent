@@ -5,6 +5,7 @@ import socket
 from threading import Thread
 import logging
 
+from TorrentPython.BitfieldExt import *
 from TorrentPython.MetaInfo import *
 from TorrentPython.PeerMessage import *
 
@@ -32,13 +33,13 @@ class PeerRadioMessage(object):
 
 
 class PeerRadioActor(pykka.ThreadingActor):
-    SOCKET_TIMEOUT = 5
+    SOCKET_TIMEOUT = 2
     KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
     @staticmethod
-    def recvThread(owner):
+    def recv_thread(owner):
         while True:
             try:
                 owner.handle(owner.recv(PeerRadioActor.BUFFER_SIZE))
@@ -54,6 +55,7 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.peer_radio = peer_radio
         self.client_id = client_id
         self.metainfo = metainfo
+        self.info = self.metainfo.get_info()
 
         self.sock = None
         self.keepAliveSubscription = None
@@ -62,11 +64,24 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.remain = b''
         self.chock = True
 
+    def cleanup(self):
+        if self.keepAliveSubscription:
+            self.keepAliveSubscription.dispose()
+            self.keepAliveSubscription = None
+
+        if self.sock:
+            self.sock.close()
+            self.sock = None
+
+        self.connected = False
+        self.remain = b''
+        self.chock = True
+
     def on_start(self):
         pass
 
     def on_stop(self):
-        self.disconnect()
+        self.cleanup()
         self.peer_radio.on_completed()
 
     def on_receive(self, message):
@@ -99,7 +114,6 @@ class PeerRadioActor(pykka.ThreadingActor):
             self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
         elif msg.id == Message.UNCHOCK:
-            self.interested()
             self.actor_ref.tell({'func': lambda x: x.set_chock(False)})
             self.peer_radio.on_next(PeerRadioMessage.received(msg))
 
@@ -118,6 +132,9 @@ class PeerRadioActor(pykka.ThreadingActor):
     def set_chock(self, value):
         self.chock = value
 
+    def get_chock(self):
+        return self.chock
+
     def connect(self, peer_ip, peer_port):
         if self.connected is True:
             return False
@@ -133,16 +150,21 @@ class PeerRadioActor(pykka.ThreadingActor):
             self.sock.send(buf)
             received = self.sock.recv(Handshake.TOTAL_LEN)
         except:
+            self.sock.close()
+            self.sock = None
             return False
 
         msg = Handshake.create(received)
         if msg is None or msg.info_hash != self.metainfo.info_hash:
             return False
 
+        self.sock.send(BitfieldExt.create_empty_bitfield_buffer(self.info.get_piece_num()))
+        self.interested()
+
         self.keepAliveSubscription = Observable.interval(
             PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keep_alive())
 
-        th = Thread(target=PeerRadioActor.recvThread, args=(self,))
+        th = Thread(target=PeerRadioActor.recv_thread, args=(self,))
         th.daemon = True
         th.start()
 
@@ -157,17 +179,7 @@ class PeerRadioActor(pykka.ThreadingActor):
         if not self.connected:
             return False
 
-        if self.keepAliveSubscription:
-            self.keepAliveSubscription.dispose()
-            self.keepAliveSubscription = None
-
-        if self.sock:
-            self.sock.close()
-            self.sock = None
-
-        self.connected = False
-        self.remain = b''
-        self.chock = True
+        self.cleanup()
 
         self.peer_radio.on_next(PeerRadioMessage.disconnected())
         return True
@@ -184,9 +196,6 @@ class PeerRadioActor(pykka.ThreadingActor):
                 return False
         else:
             return False
-
-    def getChock(self):
-        return self.chock
 
 
 class PeerRadio(Subject):

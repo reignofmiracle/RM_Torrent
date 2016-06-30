@@ -9,26 +9,45 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
     PIECE_DOWNLOAD_COMPLETED = 2
 
     @staticmethod
-    def select_order(schedule_board: list):
-        candidates = [i for i, v in enumerate(schedule_board) if v == HuntingSchedulerActor.PIECE_DOWNLOAD_NONE]
+    def select_order(completed_piece_indices: list, schedule_board: list):
+        candidates = [i for i, v in enumerate(schedule_board)
+                      if v == HuntingSchedulerActor.PIECE_DOWNLOAD_NONE and i in completed_piece_indices]
         return None if len(candidates) == 0 else random.choice(candidates)
 
     def __init__(self, piece_assembler):
         super(HuntingSchedulerActor, self).__init__()
         self.piece_assembler = piece_assembler
+        self.bitfield_ext = None
+        self.schedule_board = None
 
-        self.schedule_board = \
-            [HuntingSchedulerActor.PIECE_DOWNLOAD_NONE for _ in range(self.piece_assembler.get_piece_num())]
+    def on_start(self):
+        self.bitfield_ext = self.piece_assembler.get_bitfield_ext()
+        self.schedule_board = [HuntingSchedulerActor.PIECE_DOWNLOAD_COMPLETED
+                               if self.bitfield_ext.have(i) else HuntingSchedulerActor.PIECE_DOWNLOAD_NONE
+                               for i in range(self.bitfield_ext.get_piece_num())]
 
     def on_receive(self, message):
         return message.get('func')(self)
 
-    def get_order(self):
-        order = HuntingSchedulerActor.select_order(self.schedule_board)
-        if order is not None:
-            self.schedule_board[order] = HuntingSchedulerActor.PIECE_DOWNLOAD_RUNNING
+    def get_order_list(self, bitfield_ext, order_size):
+        if order_size <= 0:
+            return []
 
-        return order
+        if bitfield_ext:
+            completed_piece_indices = bitfield_ext.get_completed_piece_indices()
+        else:
+            completed_piece_indices = [i for i in range(self.bitfield_ext.get_piece_num())]
+
+        order_list = []
+        for i in range(order_size):
+            order = HuntingSchedulerActor.select_order(completed_piece_indices, self.schedule_board)
+            if order is not None:
+                self.schedule_board[order] = HuntingSchedulerActor.PIECE_DOWNLOAD_RUNNING
+                order_list.append(order)
+            else:
+                break
+
+        return order_list
 
     def complete_order(self, order):
         if self.schedule_board[order] == HuntingSchedulerActor.PIECE_DOWNLOAD_RUNNING:
@@ -51,12 +70,12 @@ class HuntingScheduler(object):
         if self.actor.is_alive():
             self.actor.stop()
 
-    def get_order(self):
-        return self.actor.ask({'func': lambda x: x.get_order()})
+    def get_order_list(self, bitfield_ext, order_size):
+        return self.actor.ask({'func': lambda x: x.get_order_list(bitfield_ext, order_size)})
 
     def complete_order(self, order):
         self.actor.tell({'func': lambda x: x.complete_order(order)})
 
     def cancel_order(self, order):
-        self.actor.tell({'func': lambda x: x.cancel_orders(order)})
+        self.actor.tell({'func': lambda x: x.cancel_order(order)})
 

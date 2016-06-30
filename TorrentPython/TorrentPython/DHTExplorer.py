@@ -87,6 +87,7 @@ class DHTExplorer(object):
         return peer_list, updated_routing_table
 
     def get_peers(self, info_hash: bytes, node_ip, node_port):
+        # return [('192.168.10.12', 51413)], {}
         try:
             self.sock.sendto(DHTProtocol.get_peers(self.client_id, info_hash), (node_ip, node_port))
             return DHTProtocol.parse_peers(Bencode.decode(self.sock.recv(1024)))

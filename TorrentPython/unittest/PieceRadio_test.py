@@ -13,7 +13,7 @@ from TorrentPython.TorrentUtils import *
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.0.9'
+TRANSMISSION_IP = '192.168.10.12'
 TRANSMISSION_PORT = 51413
 
 
@@ -21,8 +21,10 @@ class PieceRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        self.peer_ip = TRANSMISSION_IP
-        self.peer_port = TRANSMISSION_PORT
+        # self.peer_ip = TRANSMISSION_IP
+        # self.peer_port = TRANSMISSION_PORT
+        self.peer_ip = '185.38.76.135'
+        self.peer_port = 51413
         self.dest_question = 'D:/sandbox/'
         self.dest_answer = 'D:/sandbox2/'
         pass
@@ -48,7 +50,7 @@ class PieceRadioTest(unittest.TestCase):
         testObj.destroy()
         del testObj
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_request_M(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         self.assertIsNotNone(metainfo)
@@ -58,7 +60,6 @@ class PieceRadioTest(unittest.TestCase):
             shutil.rmtree(self.dest_question + info.get_name().decode())
 
         piece_assembler = PieceAssembler(metainfo, self.dest_question)
-        self.assertTrue(piece_assembler.prepare())
 
         endEvent = Event()
 
@@ -113,7 +114,7 @@ class PieceRadioTest(unittest.TestCase):
         piece_assembler.destroy()
         del piece_assembler
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_request_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
         self.assertIsNotNone(metainfo)
@@ -123,7 +124,6 @@ class PieceRadioTest(unittest.TestCase):
             os.remove(self.dest_question + info.get_name().decode())
 
         piece_assembler = PieceAssembler(metainfo, self.dest_question)
-        self.assertTrue(piece_assembler.prepare())
 
         endEvent = Event()
 
@@ -157,7 +157,7 @@ class PieceRadioTest(unittest.TestCase):
                 pass
 
         piece_radio.subscribe(PieceRadioObserver(endEvent))
-        piece_radio.connect(self.peer_ip, self.peer_port)
+        self.assertTrue(piece_radio.connect(self.peer_ip, self.peer_port))
 
         piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
         random.shuffle(piece_indices)

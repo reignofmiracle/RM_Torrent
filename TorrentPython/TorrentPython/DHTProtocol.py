@@ -38,7 +38,6 @@ class DHTProtocol(object):
             for sample in source:
                 peers.append((socket.inet_ntoa(sample[:4]), struct.unpack('!H', sample[4:4 + 2])[0]))
 
-        nodes = {}
         source = response.get(b'r').get(b'nodes')
         if source:
             for idx in range(0, len(source), DHTProtocol.COMPACT_NODE_INFO_LENGTH):

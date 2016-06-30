@@ -18,7 +18,7 @@ class DownloadManagerActor(pykka.ThreadingActor):
 
     FIND_PEER_TIMEOUT = 10  # sec
 
-    PIECE_HUNTER_RECRUIT_SIZE = 5
+    PIECE_HUNTER_RECRUIT_SIZE = 10
     PIECE_HUNTER_SIZE_LIMIT = 50
 
     def __init__(self, downloader_manager, client_id, metainfo, path, routing_table=None):
@@ -32,7 +32,7 @@ class DownloadManagerActor(pykka.ThreadingActor):
         self.info = self.metainfo.get_info()
         self.piece_assembler = PieceAssembler(self.metainfo, self.path)
         self.peer_detective = PeerDetective(self.client_id, self.routing_table)
-        self.hunting_scheduler = HuntingScheduler(self.download_manager, self.piece_assembler)
+        self.hunting_scheduler = HuntingScheduler(self.piece_assembler)
         self.piece_hunter_manager = PieceHunterManager()
 
         self.last_update_time = 0
@@ -40,7 +40,6 @@ class DownloadManagerActor(pykka.ThreadingActor):
         self.update_timer = None
 
     def on_start(self):
-        self.piece_assembler.prepare()
         self.last_update_time = time.clock()
         self.last_bitfield_ext = self.piece_assembler.get_bitfield_ext()
 
@@ -77,16 +76,14 @@ class DownloadManagerActor(pykka.ThreadingActor):
             self.metainfo.info_hash,
             DownloadManagerActor.PIECE_HUNTER_RECRUIT_SIZE,
             DownloadManagerActor.FIND_PEER_TIMEOUT)
+        print('peer_list', peer_list)
 
         for peer in peer_list:
             if self.piece_hunter_manager.size() >= DownloadManagerActor.PIECE_HUNTER_SIZE_LIMIT:
                 break
 
-            piece_hunter = PieceHunter.create(
-                self.hunting_scheduler, self.piece_assembler,
-                self.client_id, self.metainfo, *peer)
-            if piece_hunter:
-                self.piece_hunter_manager.register(piece_hunter)
+            self.piece_hunter_manager.register(
+                PieceHunter(self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, *peer))
 
         return True
 

@@ -35,7 +35,7 @@ class DHTExplorerTest(unittest.TestCase):
         print(routing_table)
         del testObj
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_explore_twice(self):
         testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
 
@@ -44,6 +44,27 @@ class DHTExplorerTest(unittest.TestCase):
             peer_list = testObj.explore(self.info_hash, 5, 0)
             # self.assertTrue(len(peer_list) > 0)
             print(len(peer_list), peer_list)
+
+        del testObj
+
+    # @unittest.skip("clear")
+    def test_create_routing_table(self):
+        testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
+
+        zero_counter = 0
+        for i in range(100):
+            print(len(testObj.routing_table), testObj.routing_table)
+
+            peer_list = testObj.explore(self.info_hash, 10, 0)
+            print(len(peer_list), peer_list)
+
+            if len(peer_list) == 0:
+                zero_counter += 1
+
+                if zero_counter > 20:
+                    break
+
+        RoutingTable.save(testObj.routing_table, 'routing_table.py')
 
         del testObj
 
