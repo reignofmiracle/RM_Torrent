@@ -13,18 +13,16 @@ from TorrentPython.TorrentUtils import *
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.10.12'
-TRANSMISSION_PORT = 51413
+PEER_IP = '192.168.10.12'
+PEER_PORT = 51413
 
 
 class PieceRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        # self.peer_ip = TRANSMISSION_IP
-        # self.peer_port = TRANSMISSION_PORT
-        self.peer_ip = '185.38.76.135'
-        self.peer_port = 51413
+        self.peer_ip = PEER_IP
+        self.peer_port = PEER_PORT
         self.dest_question = 'D:/sandbox/'
         self.dest_answer = 'D:/sandbox2/'
         pass
@@ -32,87 +30,12 @@ class PieceRadioTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("clear")
-    def test_create(self):
-        testObj = PieceRadio(self.client_id, self.metainfo)
+    # @unittest.skip("clear")
+    def test_start(self):
+        metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        testObj = PieceRadio.start(self.client_id, metainfo)
         self.assertIsNotNone(testObj)
-        testObj.subscribe(lambda x: print(x.id))
-        testObj.destroy()
-        del testObj
-
-    @unittest.skip("clear")
-    def test_connect_disconnect(self):
-        testObj = PieceRadio(self.client_id, self.metainfo)
-        self.assertIsNotNone(testObj)
-        testObj.subscribe(lambda x: print(x.id))
-        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
-        time.sleep(5)
-        testObj.destroy()
-        del testObj
-
-    @unittest.skip("clear")
-    def test_request_M(self):
-        metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        self.assertIsNotNone(metainfo)
-
-        info = metainfo.get_info()
-        if os.path.isdir(self.dest_question + info.get_name().decode()):
-            shutil.rmtree(self.dest_question + info.get_name().decode())
-
-        piece_assembler = PieceAssembler(metainfo, self.dest_question)
-
-        endEvent = Event()
-
-        piece_radio = PieceRadio(self.client_id, metainfo)
-        self.assertIsNotNone(piece_radio)
-
-        received_piece_indices = []
-
-        class PieceRadioObserver(Observer):
-            def __init__(self, event):
-                self.endEvent = event
-
-            def on_next(self, msg):
-                print(msg.id)
-
-                if msg.id == PieceRadioMessage.PIECE:
-                    print(msg.payload[0])
-                    received_piece_indices.append(msg.payload[0])
-                    piece_assembler.write(*msg.payload)
-
-                if msg.id == PieceRadioMessage.COMPLETED:
-                    self.endEvent.set()
-
-                if msg.id == PieceRadioMessage.INTERRUPTED:
-                    self.endEvent.set()
-
-            def on_completed(self):
-                print('on_completed')
-
-            def on_error(self, e):
-                pass
-
-        piece_radio.subscribe(PieceRadioObserver(endEvent))
-        piece_radio.connect(self.peer_ip, self.peer_port)
-
-        piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
-        random.shuffle(piece_indices)
-        piece_radio.request(piece_indices, 100, 5)
-
-        endEvent.wait()
-
-        self.assertEqual(piece_indices, received_piece_indices)
-
-        for file in info.iter_files():
-            self.assertTrue(
-                filecmp.cmp(self.dest_question + file.get_full_path().decode(),
-                            self.dest_answer + file.get_full_path().decode()))
-
-        piece_radio.destroy()
-        del piece_radio
-
-        piece_assembler.destroy()
-        del piece_assembler
+        testObj.stop()
 
     # @unittest.skip("clear")
     def test_request_S(self):
@@ -123,99 +46,46 @@ class PieceRadioTest(unittest.TestCase):
         if os.path.exists(self.dest_question + info.get_name().decode()):
             os.remove(self.dest_question + info.get_name().decode())
 
-        piece_assembler = PieceAssembler(metainfo, self.dest_question)
+        piece_assembler = PieceAssembler.start(metainfo, self.dest_question)
 
-        endEvent = Event()
+        test_obj = PieceRadio(self.client_id, metainfo)
+        self.assertIsNotNone(test_obj)
 
-        piece_radio = PieceRadio(self.client_id, metainfo)
-        self.assertIsNotNone(piece_radio)
+        end_event = Event()
 
         received_piece_indices = []
 
-        class PieceRadioObserver(Observer):
-            def __init__(self, event):
-                self.endEvent = event
+        def write_piece(msg):
+            if msg.get('id') == 'piece':
+                print(msg.get('payload')[0])
+                received_piece_indices.append(msg.get('payload')[0])
+                piece_assembler.write(*msg.get('payload'))
 
-            def on_next(self, msg):
-                print(msg.id)
+        test_obj.subscribe(lambda msg: write_piece(msg))
 
-                if msg.id == PieceRadioMessage.PIECE:
-                    print(msg.payload[0])
-                    received_piece_indices.append(msg.payload[0])
-                    piece_assembler.write(*msg.payload)
+        test_obj.subscribe(
+            lambda msg: end_event.set() if msg.get('id') == 'completed' else None)
 
-                if msg.id == PieceRadioMessage.COMPLETED:
-                    self.endEvent.set()
+        test_obj.subscribe(
+            lambda msg: end_event.set() if msg.get('id') == 'interrupted' else None)
 
-                if msg.id == PieceRadioMessage.INTERRUPTED:
-                    self.endEvent.set()
-
-            def on_completed(self):
-                print('on_completed')
-
-            def on_error(self, e):
-                pass
-
-        piece_radio.subscribe(PieceRadioObserver(endEvent))
-        self.assertTrue(piece_radio.connect(self.peer_ip, self.peer_port))
+        test_obj.connect(self.peer_ip, self.peer_port)
+        test_obj.set_piece_per_step(10)
+        test_obj.set_peer_radio_timeout(5)
 
         piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
         random.shuffle(piece_indices)
-        piece_radio.request(piece_indices, 10, 5)
+        test_obj.request(piece_indices)
 
-        endEvent.wait()
+        end_event.wait()
+        test_obj.stop()
+        piece_assembler.stop()
 
         self.assertEqual(piece_indices, received_piece_indices)
 
         self.assertTrue(
             filecmp.cmp(self.dest_question + info.get_name().decode(),
                         self.dest_answer + info.get_name().decode()))
-
-        piece_radio.destroy()
-        del piece_radio
-
-        piece_assembler.destroy()
-        del piece_assembler
-
-    @unittest.skip("clear")
-    def test_request_timeout(self):
-        endEvent = Event()
-
-        testObj = PieceRadio(self.client_id, self.metainfo)
-        self.assertIsNotNone(testObj)
-
-        class PieceRadioObserver(Observer):
-            def __init__(self, event):
-                self.endEvent = event
-
-            def on_next(self, msg):
-                print(msg.id)
-
-                if msg.id == PieceRadioMessage.PIECE:
-                    print(msg.payload[0])
-
-                if msg.id == PieceRadioMessage.COMPLETED:
-                    self.endEvent.set()
-
-                if msg.id == PieceRadioMessage.INTERRUPTED:
-                    self.endEvent.set()
-
-            def on_completed(self):
-                print('on_completed')
-
-            def on_error(self, e):
-                pass
-
-        testObj.subscribe(PieceRadioObserver(endEvent))
-        testObj.connect(self.peer_ip, self.peer_port)
-
-        piece_indices = [1404]
-        testObj.request(piece_indices, 10, 5)
-
-        endEvent.wait()
-
-        testObj.destroy()
-        del testObj
 
 if __name__ == '__main__':
     unittest.main()

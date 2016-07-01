@@ -15,7 +15,7 @@ class PieceHunterTest(unittest.TestCase):
         self.piece_assembler = PieceAssembler(self.metainfo, self.path)
 
     def tearDown(self):
-        self.piece_assembler.destroy()
+        self.piece_assembler.stop()
 
     @unittest.skip("clear")
     def test_new(self):

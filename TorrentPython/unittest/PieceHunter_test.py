@@ -33,7 +33,7 @@ class PieceHunterTest(unittest.TestCase):
 
     def tearDown(self):
         self.hunting_scheduler.destroy()
-        self.piece_assembler.destroy()
+        self.piece_assembler.stop()
 
     @unittest.skip("clear")
     def test_create(self):

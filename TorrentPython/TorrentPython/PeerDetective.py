@@ -10,7 +10,9 @@ class PeerDetectiveActor(pykka.ThreadingActor):
         self.explorer = DHTExplorer(client_id, routing_table)
 
     def on_receive(self, message):
-        return message.get('func')(self)
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
 
     def find_peers(self, info_hash: bytes, peer_limit, time_limit):
         return self.explorer.explore(info_hash, peer_limit, time_limit)
@@ -32,7 +34,7 @@ class PeerDetective(object):
             self.actor.stop()
 
     def find_peers(self, info_hash: bytes, peer_limit=None, time_limit=None):
-        return self.actor.ask({'func': lambda x: x.find_peers(info_hash, peer_limit, time_limit)})
+        return self.actor.ask({'func': 'find_peers', 'args': (info_hash, peer_limit, time_limit)})
 
     def get_routing_table(self):
-        return self.actor.ask({'func': lambda x: x.get_routing_table()})
+        return self.actor.ask({'func': 'get_routing_table', 'args': None})

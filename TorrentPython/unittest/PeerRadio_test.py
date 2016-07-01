@@ -1,143 +1,83 @@
-import unittest
-import time
 from threading import Event
 
+import unittest
 from TorrentPython.MetaInfo import MetaInfo
 from TorrentPython.PeerMessage import Message
-from TorrentPython.PeerRadio import PeerRadio, Observer, PeerRadioMessage
+from TorrentPython.PeerRadio import PeerRadio
 from TorrentPython.TorrentUtils import TorrentUtils
 
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-TRANSMISSION_IP = '192.168.10.12'
-TRANSMISSION_PORT = 51413
+PEER_IP = '192.168.10.12'
+PEER_PORT = 51413
 
 
 class PeerRadioTest(unittest.TestCase):
 
     def setUp(self):
         self.client_id = TorrentUtils.getPeerID()
-        # self.metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        self.metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
+        self.metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        # self.metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
         self.assertIsNotNone(self.metainfo)
-        self.peer_ip = TRANSMISSION_IP
-        self.peer_port = TRANSMISSION_PORT
+        self.peer_ip = PEER_IP
+        self.peer_port = PEER_PORT
         pass
 
     def tearDown(self):
         pass
 
     @unittest.skip("clear")
-    def test_new(self):
-        testObj = PeerRadio(self.client_id, self.metainfo)
-        self.assertIsNotNone(testObj)
-        testObj.subscribe(on_completed=lambda: print('on_completed'))
-        testObj.destroy()
-        del testObj
+    def test_start(self):
+        test_obj = PeerRadio.start(self.client_id, self.metainfo)
+        self.assertIsNotNone(test_obj)
+        test_obj.stop()
 
     @unittest.skip("clear")
-    def test_connect_destroy(self):
-        testObj = PeerRadio(self.client_id, self.metainfo)
-        self.assertIsNotNone(testObj)
-        testObj.subscribe(lambda x: print(x.id))
-        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
-        time.sleep(4)
-        testObj.destroy()
-        del testObj
+    def test_connect(self):
+        test_obj = PeerRadio.start(self.client_id, self.metainfo)
+        self.assertIsNotNone(test_obj)
 
-    @unittest.skip("clear")
-    def test_reconnect(self):
-        testObj = PeerRadio(self.client_id, self.metainfo)
-        testObj.subscribe(lambda x: print(x.id))
-        self.assertIsNotNone(testObj)
-        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
-        self.assertFalse(testObj.connect(self.peer_ip, self.peer_port))
-        testObj.destroy()
-        del testObj
+        end_event = Event()
 
-    @unittest.skip("wait")
-    def test_connect_disconnect(self):
-        testObj = PeerRadio(self.client_id, self.metainfo)
-        testObj.subscribe(lambda x: print(x.id))
-        self.assertIsNotNone(testObj)
-        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
-        time.sleep(10)
-        testObj.disconnect()
+        test_obj.subscribe(lambda msg: print(msg.get('id'), msg.get('payload')))
+        test_obj.subscribe(
+            lambda msg: test_obj.stop() if msg.get('id') == 'msg' and msg.get('payload').id == Message.UNCHOCK else None)
+        test_obj.subscribe(
+            lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
+        test_obj.subscribe(on_completed=lambda: end_event.set())
+        test_obj.subscribe(on_completed=lambda: print('on_completed'))
 
-        time.sleep(1)
+        test_obj.connect(self.peer_ip, self.peer_port)
 
-        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
-        time.sleep(10)
-        testObj.disconnect()
-        testObj.destroy()
-        del testObj
+        end_event.wait()
+        test_obj.stop()
 
     # @unittest.skip("clear")
     def test_request(self):
-        endEvent = Event()
+        test_obj = PeerRadio.start(self.client_id, self.metainfo)
+        self.assertIsNotNone(test_obj)
 
-        testObj = PeerRadio(self.client_id, self.metainfo)
-        self.assertIsNotNone(testObj)
+        end_event = Event()
 
-        class PeerRadioObserver(Observer):
-            def __init__(self, event):
-                self.endEvent = event
+        test_obj.subscribe(lambda msg: print(msg.get('id'), msg.get('payload')))
 
-            def on_next(self, msg):
-                print(msg.id)
-                if msg.id == PeerRadioMessage.RECEIVED:
-                    payload = msg.payload
-                    if payload.id == Message.UNCHOCK:
-                        print(testObj.request(383, 0, 16373))
+        def handler(msg):
+            if msg.get('id') == 'msg':
+                payload = msg.get('payload')
 
-                    if payload.id == Message.PIECE:
-                        self.endEvent.set()
+                if payload.id == Message.UNCHOCK:
+                    test_obj.request(0, 0, 2 ** 14)
 
-            def on_completed(self):
-                print('on_completed')
+                if payload.id == Message.PIECE:
+                    end_event.set()
 
-            def on_error(self, e):
-                pass
+        test_obj.subscribe(lambda msg: handler(msg))
 
-        testObj.subscribe(PeerRadioObserver(endEvent))
-        testObj.connect(self.peer_ip, self.peer_port)
+        test_obj.connect(self.peer_ip, self.peer_port)
 
-        endEvent.wait()
-
-        testObj.destroy()
-        del testObj
-
-    @unittest.skip("clear")
-    def test_completed_when_error(self):
-        endEvent = Event()
-
-        testObj = PeerRadio(self.client_id, self.metainfo)
-        self.assertIsNotNone(testObj)
-
-        class PeerRadioObserver(Observer):
-            def __init__(self, event):
-                self.endEvent = event
-
-            def on_next(self, msg):
-                print(msg.id, msg.payload)
-                if msg.id == PeerRadioMessage.DISCONNECTED:
-                    self.endEvent.set()
-
-            def on_completed(self):
-                print('on_completed')
-
-            def on_error(self, e):
-                pass
-
-        testObj.subscribe(PeerRadioObserver(endEvent))
-        self.assertTrue(testObj.connect(self.peer_ip, self.peer_port))
-
-        endEvent.wait()
-
-        testObj.destroy()
-        del testObj
+        end_event.wait()
+        test_obj.stop()
 
 if __name__ == '__main__':
-
     unittest.main()

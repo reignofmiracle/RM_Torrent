@@ -122,7 +122,9 @@ class PieceAssemblerActor(pykka.ThreadingActor):
         PieceAssemblerActor.prepare_container(self.info, self.path)
 
     def on_receive(self, message):
-        return message.get('func')(self)
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
 
     def get_bitfield_ext(self):
         missing_piece_indices = set()
@@ -134,8 +136,6 @@ class PieceAssemblerActor(pykka.ThreadingActor):
             self.info.get_piece_num(), missing_piece_indices)
 
     def write(self, piece_index, piece_block):
-        print('write', piece_index)
-
         coverage_plan = PieceAssemblerActor.get_coverage(self.info, piece_index, piece_block)
         if not coverage_plan:
             return False
@@ -149,18 +149,23 @@ class PieceAssemblerActor(pykka.ThreadingActor):
 
 
 class PieceAssembler(object):
+
+    @staticmethod
+    def start(metainfo: MetaInfo, path):
+        return PieceAssembler(metainfo, path)
+
     def __init__(self, metainfo: MetaInfo, path):
         self.actor = PieceAssemblerActor.start(metainfo, path)
 
     def __del__(self):
-        self.destroy()
+        self.stop()
 
-    def destroy(self):
+    def stop(self):
         if self.actor.is_alive():
             self.actor.stop()
 
     def get_bitfield_ext(self):
-        return self.actor.ask({'func': lambda x: x.get_bitfield_ext()})
+        return self.actor.ask({'func': 'get_bitfield_ext', 'args': None})
 
     def write(self, piece_index, piece_block):
-        return self.actor.ask({'func': lambda x: x.write(piece_index, piece_block)})
+        return self.actor.ask({'func': 'write', 'args': (piece_index, piece_block)})

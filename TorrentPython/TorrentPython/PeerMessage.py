@@ -7,7 +7,7 @@ class Handshake(object):
     TOTAL_LEN = 68
 
     @staticmethod
-    def getBytes(info_hash: bytes, peer_id: bytes):
+    def get_bytes(info_hash: bytes, peer_id: bytes):
         if len(info_hash) != 20 or len(peer_id) != 20:
             return None
 
@@ -18,7 +18,7 @@ class Handshake(object):
         return pstrlen + pstr + reserved + info_hash + peer_id
 
     @staticmethod
-    def isThis(buf: bytes):
+    def is_this(buf: bytes):
         if len(buf) is not Handshake.TOTAL_LEN:
             return False
 
@@ -32,7 +32,7 @@ class Handshake(object):
 
     @staticmethod
     def create(buf: bytes):
-        if not Handshake.isThis(buf):
+        if not Handshake.is_this(buf):
             return None
 
         ret = Handshake()
@@ -91,7 +91,7 @@ class Message(object):
         return Message(message_len, message_id, message_buf)
 
     @staticmethod
-    def getClass(message_id):
+    def get_class(message_id):
         if message_id == Message.KEEP_ALIVE:
             return KeepAlive
         if message_id == Message.CHOCK:
@@ -123,11 +123,11 @@ class Message(object):
         if msg is None:
             return None, buf
 
-        messageClass = Message.getClass(msg.id)
-        if messageClass is None:
+        message_class = Message.get_class(msg.id)
+        if message_class is None:
             return None, buf
 
-        return messageClass.create(msg.buf), buf[len(msg.buf):]
+        return message_class.create(msg.buf), buf[len(msg.buf):]
 
     def __init__(self, message_len, message_id, message_buf):
         self.len = message_len
@@ -139,7 +139,7 @@ class KeepAlive(Message):
     MESSAGE = b'\x00\x00\x00\x00'
 
     @staticmethod
-    def getBytes():
+    def get_bytes():
         return KeepAlive.MESSAGE
 
     @staticmethod
@@ -190,7 +190,7 @@ class Unchock(Message):
 
 class Interested(Message):
     @staticmethod
-    def getBytes():
+    def get_bytes():
         return b'\x00\x00\x00\x01\x02'
 
     @staticmethod
@@ -258,7 +258,7 @@ class Request(Message):
     MESSAGE_LEN = 1 + 4 + 4 + 4  # id, index, begin, length
 
     @staticmethod
-    def getBytes(index, begin, length):
+    def get_bytes(index, begin, length):
         message_len = struct.pack('!I', Request.MESSAGE_LEN)
         message_id = struct.pack('!B', Message.REQUEST)
         message_content = struct.pack('!III', index, begin, length)

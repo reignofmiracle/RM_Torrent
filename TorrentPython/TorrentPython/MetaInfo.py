@@ -45,8 +45,13 @@ class MetaInfo(object):
         self.metainfo = metainfo
         self.info_hash = info_hash
 
+        self.info = None
+
     def get_info(self):
-        return BaseInfo.create(self.metainfo.get(b'info'))
+        if self.info is None:
+            self.info = BaseInfo.create(self.metainfo.get(b'info'))
+
+        return self.info
 
     def get_announce(self):
         return self.metainfo.get(b'announce')

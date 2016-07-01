@@ -11,7 +11,7 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
 
     def on_stop(self):
         for hunter in self.piece_hunters:
-            hunter.destroy()
+            hunter.stop()
 
     def on_receive(self, message):
         return message.get('func')(self)

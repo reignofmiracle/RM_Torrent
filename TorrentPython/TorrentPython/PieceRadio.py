@@ -1,39 +1,6 @@
 import threading
 
-from TorrentPython.BitfieldExt import BitfieldExt
 from TorrentPython.PeerRadio import *
-
-
-class PieceRadioMessage(object):
-    CONNECTED = 'CONNECTED'
-    DISCONNECTED = 'DISCONNECTED'
-    PIECE = 'PIECE'
-    COMPLETED = 'COMPLETED'
-    INTERRUPTED = 'INTERRUPTED'
-
-    def __init__(self, message_id, message_payload):
-        self.id = message_id
-        self.payload = message_payload
-
-    @staticmethod
-    def connected():
-        return PeerRadioMessage(PieceRadioMessage.CONNECTED, None)
-
-    @staticmethod
-    def disconnected():
-        return PeerRadioMessage(PieceRadioMessage.DISCONNECTED, None)
-
-    @staticmethod
-    def piece(index, piece):
-        return PeerRadioMessage(PieceRadioMessage.PIECE, (index, piece))
-
-    @staticmethod
-    def completed():
-        return PeerRadioMessage(PieceRadioMessage.COMPLETED, None)
-
-    @staticmethod
-    def interrupted(piece_queue: list):
-        return PeerRadioMessage(PieceRadioMessage.INTERRUPTED, piece_queue)
 
 
 class PieceRadioActor(pykka.ThreadingActor):
@@ -49,76 +16,80 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.info = metainfo.get_info()
 
         self.peer_radio = PeerRadio(client_id, metainfo)
-        self.peer_radio.subscribe(on_next=self.on_next)
+        self.peer_radio.subscribe(on_next=self.on_subscribe)
+
+        self.piece_per_step = PieceRadioActor.PIECE_PER_STEP
+        self.peer_radio_timeout = PieceRadioActor.PEER_RADIO_TIMEOUT
 
         self.bitfield_ext = None
-        self.piece_indices = None
-        self.piece_per_step = PieceRadioActor.PIECE_PER_STEP
-        self.timeout = None
 
+        self.chock = True
+        self.piece_indices = None
         self.piece_queue = None
         self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
         self.working_piece = b''  # rm_notice
-        self.workingStep = 0
+        self.working_step = 0
         self.delay_timer = None
 
     def cleanup(self):
-        self.bitfield_ext = None
+        self.chock = True
         self.piece_indices = None
-        self.piece_per_step = PieceRadioActor.PIECE_PER_STEP
-        self.timeout = None
-
         self.piece_queue = None
         self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
         self.working_piece = b''  # rm_notice
-        self.workingStep = 0
+        self.working_step = 0
 
         if self.delay_timer is not None:
             self.delay_timer.cancel()
             self.delay_timer = None
 
-    def on_start(self):
-        pass
-
     def on_stop(self):
-        self.peer_radio.destroy()
+        self.peer_radio.stop()
+        self.cleanup()
         self.piece_radio.on_completed()
 
     def on_receive(self, message):
-        return message.get('func')(self)
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
+
+    def on_subscribe(self, msg):
+        if self.actor_ref.is_alive():
+            self.actor_ref.tell({'func': 'on_next', 'args': (msg,)})
 
     def on_next(self, msg):
-        if msg.id == PeerRadioMessage.CONNECTED:
-            self.piece_radio.on_next(PieceRadioMessage.connected())
+        if msg.get('id') == 'connected':
+            self.piece_radio.on_next(msg)
 
-        elif msg.id == PeerRadioMessage.DISCONNECTED:
-            self.piece_radio.on_next(PieceRadioMessage.disconnected())
+        elif msg.get('id') == 'disconnected':
+            self.piece_radio.on_next(msg)
 
-        elif msg.id == PeerRadioMessage.RECEIVED:
-            payload = msg.payload
-            if payload.id == Message.UNCHOCK:
-                self.actor_ref.tell({'func': lambda x: x.request()})
+        elif msg.get('id') == 'msg':
+            payload = msg.get('payload')
+
+            if payload.id == Message.CHOCK:
+                self.chock = True
+
+            elif payload.id == Message.UNCHOCK:
+                self.chock = False
+                self.on_request()
 
             elif payload.id == Message.BITFIELD:
-                self.actor_ref.tell({'func': lambda x: x.set_bitfield_ext(
-                    BitfieldExt.create_with_bitfield_message(self.info.get_piece_num(), payload))})
+                self.bitfield_ext = BitfieldExt.create_with_bitfield_message(self.info.get_piece_num(), payload)
 
             elif payload.id == Message.PIECE:
-                self.actor_ref.tell({'func': lambda x: x.update(payload)})
+                self.on_update(payload)
 
-    def request(self):
-        if self.peer_radio.get_chock():
-            return False
-
-        if len(self.piece_queue) <= 0:
-            return False
+    def on_request(self):
+        if self.chock is True or len(self.piece_queue) <= 0:
+            return
 
         if int(len(self.piece_queue) / self.piece_per_step) > 0:
-            self.workingStep = self.piece_per_step
+            self.working_step = self.piece_per_step
         else:
-            self.workingStep = len(self.piece_queue) % self.piece_per_step
+            self.working_step = len(self.piece_queue) % self.piece_per_step
 
-        for i in range(0, self.workingStep):
+        for i in range(0, self.working_step):
             index = self.piece_queue[i]
             piece_length = self.info.get_piece_length_index(index)
 
@@ -130,12 +101,8 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.peer_radio.request(index, block_num * PeerRadioActor.BLOCK_SIZE, block_remain)
 
         self.start_timer()
-        return True
 
-    def set_bitfield_ext(self, bitfield_ext):
-        self.bitfield_ext = bitfield_ext
-
-    def update(self, msg):
+    def on_update(self, msg):
         self.start_timer()
 
         if msg.begin == len(self.working_piece):
@@ -144,92 +111,95 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.working_piece += msg.block
 
                 if self.info.get_piece_length_index(self.working_piece_index) == len(self.working_piece):
-                    self.piece_radio.on_next(PieceRadioMessage.piece(self.working_piece_index, self.working_piece))
+                    self.piece_radio.on_next({'id': 'piece', 'payload': (self.working_piece_index, self.working_piece)})
                     self.piece_queue.remove(self.working_piece_index)
                     self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
                     self.working_piece = b''
 
                     if len(self.piece_queue) == 0:
-                        self.piece_radio.on_next(PieceRadioMessage.completed())
+                        self.piece_radio.on_next({'id': 'completed', 'payload': None})
                         self.cleanup()
                     else:
-                        self.workingStep -= 1
-                        if self.workingStep == 0:
-                            self.request()
+                        self.working_step -= 1
+                        if self.working_step == 0:
+                            self.on_request()
 
                 return True
 
-        self.discard()
-        return False
+        self.interrupted()
 
-    def discard(self):
-        if self.piece_queue:
-            self.piece_radio.on_next(PieceRadioMessage.interrupted(self.piece_queue))
+    def interrupted(self):
+        self.piece_radio.on_next({'id': 'interrupted', 'payload': self.piece_queue})
         self.cleanup()
 
     def start_timer(self):
         if self.delay_timer is not None:
             self.delay_timer.cancel()
 
-        self.delay_timer = threading.Timer(self.timeout, self.check_timeout_async)
+        self.delay_timer = threading.Timer(self.peer_radio_timeout, self.check_timeout_async)
         self.delay_timer.start()
 
     def check_timeout_async(self):
         if self.actor_ref.is_alive():
-            self.actor_ref.tell({'func': lambda x: x.check_timeout()})
+            self.actor_ref.tell({'func': 'check_timeout', 'args': None})
 
     def check_timeout(self):
         if self.piece_queue and len(self.piece_queue) > 0:
-            self.discard()
+            self.interrupted()
+
+    def set_piece_per_step(self, piece_per_step):
+        self.piece_per_step = piece_per_step
+
+    def set_peer_radio_timeout(self, peer_radio_timeout):
+        self.peer_radio_timeout = peer_radio_timeout
 
     def connect(self, peer_ip, peer_port):
-        return self.peer_radio.connect(peer_ip, peer_port)
+        self.peer_radio.connect(peer_ip, peer_port)
 
     def disconnect(self):
-        return self.peer_radio.disconnect()
+        self.peer_radio.disconnect()
 
     def get_bitfield_ext(self):
         return self.bitfield_ext
 
-    def from_request(self, piece_indices: list, piece_per_step, timeout):
-        if self.piece_queue:
-            return False
-
+    def from_request(self, piece_indices: list):
         self.cleanup()
-
         self.piece_indices = piece_indices
-        self.piece_per_step = piece_per_step
-        self.timeout = timeout
-
         self.piece_queue = piece_indices.copy()
-
-        return self.request()
+        self.on_request()
 
 
 class PieceRadio(Subject):
+
+    @staticmethod
+    def start(client_id: bytes, metainfo: MetaInfo):
+        return PieceRadio(client_id, metainfo)
 
     def __init__(self, client_id: bytes, metainfo: MetaInfo):
         super(PieceRadio, self).__init__()
         self.actor = PieceRadioActor.start(self, client_id, metainfo)
 
     def __del__(self):
-        self.destroy()
+        self.stop()
 
-    def destroy(self):
+    def stop(self):
         if self.actor.is_alive():
             self.actor.stop()
 
+    def set_piece_per_step(self, piece_per_step):
+        return self.actor.tell({'func': 'set_piece_per_step', 'args': (piece_per_step,)})
+
+    def set_peer_radio_timeout(self, peer_radio_timeout):
+        return self.actor.tell({'func': 'set_peer_radio_timeout', 'args': (peer_radio_timeout,)})
+
     def connect(self, peer_ip, peer_port):
-        return self.actor.ask({'func': lambda x: x.connect(peer_ip, peer_port)})
+        return self.actor.tell({'func': 'connect', 'args':(peer_ip, peer_port)})
 
     def disconnect(self):
-        return self.actor.ask({'func': lambda x: x.disconnect()})
+        return self.actor.tell({'func': 'disconnect', 'args': None})
 
     def get_bitfield_ext(self):
-        return self.actor.ask({'func': lambda x: x.get_bitfield_ext()})
+        return self.actor.ask({'func': 'get_bitfield_ext', 'args': None})
 
-    def request(self,
-                piece_indices: list,
-                piece_per_step=PieceRadioActor.PIECE_PER_STEP,
-                timeout=PieceRadioActor.PEER_RADIO_TIMEOUT):
-        self.actor.tell({'func': lambda x: x.from_request(piece_indices, piece_per_step, timeout)})
+    def request(self, piece_indices: list):
+        self.actor.tell({'func': 'from_request', 'args': (piece_indices,)})

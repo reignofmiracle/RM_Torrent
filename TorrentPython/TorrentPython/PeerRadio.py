@@ -1,35 +1,15 @@
+import copy
+
+import pykka
 from rx.core import *
 from rx.subjects import *
-import pykka
-import socket
 from threading import Thread
+import socket
 import logging
 
-from TorrentPython.BitfieldExt import *
 from TorrentPython.MetaInfo import *
+from TorrentPython.BitfieldExt import *
 from TorrentPython.PeerMessage import *
-
-
-class PeerRadioMessage(object):
-    CONNECTED = 'CONNECTED'
-    DISCONNECTED = 'DISCONNECTED'
-    RECEIVED = 'RECEIVED'
-
-    def __init__(self, message_id, message_payload):
-        self.id = message_id
-        self.payload = message_payload
-
-    @staticmethod
-    def connected():
-        return PeerRadioMessage(PeerRadioMessage.CONNECTED, None)
-
-    @staticmethod
-    def disconnected():
-        return PeerRadioMessage(PeerRadioMessage.DISCONNECTED, None)
-
-    @staticmethod
-    def received(message):
-        return PeerRadioMessage(PeerRadioMessage.RECEIVED, message)
 
 
 class PeerRadioActor(pykka.ThreadingActor):
@@ -39,15 +19,16 @@ class PeerRadioActor(pykka.ThreadingActor):
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
     @staticmethod
-    def recv_thread(owner):
+    def recv_main(peer_radio_actor):
         while True:
             try:
-                owner.handle(owner.recv(PeerRadioActor.BUFFER_SIZE))
+                peer_radio_actor.on_update(peer_radio_actor.recv(PeerRadioActor.BUFFER_SIZE))
             except socket.timeout:
                 pass
             except Exception as e:
                 logging.debug(e)
-                owner.error()
+                if peer_radio_actor.actor_ref.is_alive():
+                    peer_radio_actor.actor_ref.tell({'func': 'on_disconnected', 'args': None})
                 break
 
     def __init__(self, peer_radio, client_id: bytes, metainfo: MetaInfo):
@@ -58,9 +39,10 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.info = self.metainfo.get_info()
 
         self.sock = None
+        self.recv_main_thread = None
         self.keepAliveSubscription = None
-        self.connected = False
 
+        self.connected = False
         self.remain = b''
         self.chock = True
 
@@ -68,6 +50,8 @@ class PeerRadioActor(pykka.ThreadingActor):
         if self.keepAliveSubscription:
             self.keepAliveSubscription.dispose()
             self.keepAliveSubscription = None
+
+        self.recv_main_thread = None
 
         if self.sock:
             self.sock.close()
@@ -77,147 +61,131 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.remain = b''
         self.chock = True
 
-    def on_start(self):
-        pass
-
-    def on_stop(self):
-        self.cleanup()
-        self.peer_radio.on_completed()
-
-    def on_receive(self, message):
-        return message.get('func')(self)
-
     def recv(self, buffersize):
         return self.sock.recv(buffersize)
 
     def send(self, buf):
-        return self.sock.send(buf)
+        try:
+            self.sock.send(buf)
+            return True
+        except:
+            return False
 
-    def handle(self, buf):
+    def on_stop(self):
+        self.cleanup()
+        self.peer_radio.on_next({'id': 'disconnected', 'payload': None})
+        self.peer_radio.on_completed()
+
+    def on_receive(self, message):
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
+
+    def on_disconnected(self):
+        self.cleanup()
+        self.peer_radio.on_next({'id': 'disconnected', 'payload': None})
+
+    def on_update(self, buf):
         buf = self.remain + buf
         while True:
             msg, buf = Message.parse(buf)
             if msg is None:
                 break
             else:
-                self.on_next(msg)
+                self.actor_ref.tell({'func': 'on_next', 'args': (msg,)})
 
         self.remain = buf
 
-    def error(self):
-        if self.actor_ref.is_alive():
-            self.actor_ref.tell({'func': lambda x: x.disconnect()})
+    def on_next(self, msg):
+        if msg.id == Message.CANCEL:
+            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
+            self.disconnect()
 
-    def on_next(self, msg: Message):
-        if msg.id == Message.CHOCK:
-            self.actor_ref.tell({'func': lambda x: x.set_chock(True)})
-            self.peer_radio.on_next(PeerRadioMessage.received(msg))
+        elif msg.id == Message.CHOCK:
+            self.chock = True
+            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
         elif msg.id == Message.UNCHOCK:
-            self.actor_ref.tell({'func': lambda x: x.set_chock(False)})
-            self.peer_radio.on_next(PeerRadioMessage.received(msg))
+            self.chock = False
+            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
         elif msg.id == Message.PIECE:
-            self.peer_radio.on_next(PeerRadioMessage.received(msg))
+            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
         elif msg.id == Message.BITFIELD:
-            self.peer_radio.on_next(PeerRadioMessage.received(msg))
-
-    def keep_alive(self):
-        return self.send(KeepAlive.getBytes())
-
-    def interested(self):
-        return self.send(Interested.getBytes())
-
-    def set_chock(self, value):
-        self.chock = value
-
-    def get_chock(self):
-        return self.chock
+            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
     def connect(self, peer_ip, peer_port):
-        if self.connected is True:
-            return False
+        if self.connected:
+            self.peer_radio.on_next({'id': 'connected', 'payload': None})
+            return
 
-        buf = Handshake.getBytes(self.metainfo.info_hash, self.client_id)
-        if buf is None:
-            return False
+        handshake = Handshake.get_bytes(self.metainfo.info_hash, self.client_id)
+        if handshake is None:
+            self.disconnect()
+            return
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(PeerRadioActor.SOCKET_TIMEOUT)
             self.sock.connect((peer_ip, peer_port))
-            self.sock.send(buf)
+            self.sock.send(handshake)
+
             received = self.sock.recv(Handshake.TOTAL_LEN)
+            msg = Handshake.create(received)
+            if msg is None or msg.info_hash != self.metainfo.info_hash:
+                self.disconnect()
+                return
+
+            self.sock.send(BitfieldExt.create_empty_bitfield_buffer(self.info.get_piece_num()))
+            self.sock.send(Interested.get_bytes())
+
         except:
-            self.sock.close()
-            self.sock = None
-            return False
-
-        msg = Handshake.create(received)
-        if msg is None or msg.info_hash != self.metainfo.info_hash:
-            return False
-
-        self.sock.send(BitfieldExt.create_empty_bitfield_buffer(self.info.get_piece_num()))
-        self.interested()
+            self.disconnect()
+            return
 
         self.keepAliveSubscription = Observable.interval(
-            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda t: self.keep_alive())
+            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda _: self.sock.send(KeepAlive.get_bytes()))
 
-        th = Thread(target=PeerRadioActor.recv_thread, args=(self,))
-        th.daemon = True
-        th.start()
+        self.recv_main_thread = Thread(target=PeerRadioActor.recv_main, args=(self,))
+        self.recv_main_thread.daemon = True
+        self.recv_main_thread.start()
 
         self.connected = True
-        self.remain = b''
-        self.chock = True
-
-        self.peer_radio.on_next(PeerRadioMessage.connected())
-        return True
+        self.peer_radio.on_next({'id': 'connected', 'payload': None})
 
     def disconnect(self):
-        if not self.connected:
-            return False
-
         self.cleanup()
 
-        self.peer_radio.on_next(PeerRadioMessage.disconnected())
-        return True
-
     def request(self, index, begin, length):
-        if not self.connected:
-            return False
-
         if not self.chock and 0 < length <= PeerRadioActor.BLOCK_SIZE:
-            try:
-                self.send(Request.getBytes(index, begin, length))
-                return True
-            except:
-                return False
+            return self.send(Request.get_bytes(index, begin, length))
         else:
             return False
 
 
 class PeerRadio(Subject):
+
+    @staticmethod
+    def start(client_id: bytes, metainfo: MetaInfo):
+        return PeerRadio(client_id, metainfo)
+
     def __init__(self, client_id: bytes, metainfo: MetaInfo):
         super(PeerRadio, self).__init__()
         self.actor = PeerRadioActor.start(self, client_id, metainfo)
 
     def __del__(self):
-        self.destroy()
+        self.stop()
 
-    def destroy(self):
+    def stop(self):
         if self.actor.is_alive():
-            self.actor.stop()
+            self.actor.tell({'func': 'stop', 'args': None})
 
     def connect(self, peer_ip, peer_port):
-        return self.actor.ask({'func': lambda x: x.connect(peer_ip, peer_port)})
+        self.actor.tell({'func': 'connect', 'args': (peer_ip, peer_port)})
 
     def disconnect(self):
-        return self.actor.ask({'func': lambda x: x.disconnect()})
+        self.actor.tell({'func': 'disconnect', 'args': None})
 
     def request(self, index, begin, length):
-        return self.actor.ask({'func': lambda x: x.request(index, begin, length)})
-
-    def get_chock(self):
-        return self.actor.ask({'func': lambda x: x.get_chock()})
+        return self.actor.tell({'func': 'request', 'args': (index, begin, length)})

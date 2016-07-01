@@ -44,7 +44,7 @@ class DownloadManagerActor(pykka.ThreadingActor):
         self.last_bitfield_ext = self.piece_assembler.get_bitfield_ext()
 
     def on_stop(self):
-        self.piece_assembler.destroy()
+        self.piece_assembler.stop()
         self.peer_detective.destroy()
         self.hunting_scheduler.destroy()
         self.piece_hunter_manager.destroy()

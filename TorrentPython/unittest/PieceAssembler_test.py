@@ -19,18 +19,18 @@ class PieceAssemblerTest(unittest.TestCase):
     @unittest.skip("clear")
     def test_prepare_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = PieceAssembler(metainfo, self.dest_question)
+        testObj = PieceAssembler.start(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
-        testObj.destroy()
+        testObj.stop()
         del testObj
         pass
 
     @unittest.skip("clear")
     def test_prepare_M(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        testObj = PieceAssembler(metainfo, self.dest_question)
+        testObj = PieceAssembler.start(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
-        testObj.destroy()
+        testObj.stop()
         del testObj
         pass
 
@@ -40,23 +40,23 @@ class PieceAssemblerTest(unittest.TestCase):
         testObj = PieceAssembler(metainfo, self.dest_question)
         bitfield_ext = testObj.get_bitfield_ext()
         self.assertEqual([i for i in range(0, 384)], bitfield_ext.get_missing_piece_indices())
-        testObj.destroy()
+        testObj.stop()
         del testObj
         pass
 
     @unittest.skip("wait")
     def test_get_missing_piece_indices_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = PieceAssembler(metainfo, self.dest_question)
+        testObj = PieceAssembler.start(metainfo, self.dest_question)
         bitfield_ext = testObj.get_bitfield_ext()
         self.assertEqual([], bitfield_ext.get_missing_piece_indices())
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_M_F(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        testObj = PieceAssembler(metainfo, self.dest_question)
+        testObj = PieceAssembler.start(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         info = metainfo.get_info()
@@ -64,18 +64,18 @@ class PieceAssemblerTest(unittest.TestCase):
         missing_piece_indices = bitfield_ext.get_missing_piece_indices()
         expected = {i for i in range(0, info.get_piece_num())}
         self.assertEqual(expected, missing_piece_indices)
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_M_S(self):
         metainfo = MetaInfo.create_from_torrent(ROOT_TORRENT_PATH)
-        testObj = PieceAssembler(metainfo, self.dest_answer)
+        testObj = PieceAssembler.start(metainfo, self.dest_answer)
         self.assertTrue(testObj.prepare())
 
         bitfield_ext = testObj.get_bitfield_ext()
         self.assertEqual(set(), bitfield_ext.get_missing_piece_indices())
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
     @unittest.skip("clear")
@@ -87,18 +87,18 @@ class PieceAssemblerTest(unittest.TestCase):
         info = metainfo.get_info()
         bitfield_ext = testObj.get_bitfield_ext()
         self.assertEqual({i for i in range(0, info.get_piece_num())}, bitfield_ext.get_missing_piece_indices())
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
     @unittest.skip("clear")
     def test_get_missing_piece_indices_S_S(self):
         metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
-        testObj = PieceAssembler(metainfo, self.dest_answer)
+        testObj = PieceAssembler.start(metainfo, self.dest_answer)
         self.assertTrue(testObj.prepare())
 
         bitfield_ext = testObj.get_bitfield_ext()
         self.assertEqual(set(), bitfield_ext.get_missing_piece_indices())
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
     @unittest.skip("clear")
@@ -109,7 +109,7 @@ class PieceAssemblerTest(unittest.TestCase):
         if os.path.isdir(self.dest_question + info.get_name().decode()):
             shutil.rmtree(self.dest_question + info.get_name().decode())
 
-        testObj = PieceAssembler(metainfo, self.dest_question)
+        testObj = PieceAssembler.start(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         with open(self.dest_answer + 'root_piece_63.raw', 'rb') as f:
@@ -138,7 +138,7 @@ class PieceAssemblerTest(unittest.TestCase):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        testObj = PieceAssembler(metainfo, self.dest_question)
+        testObj = PieceAssembler.start(metainfo, self.dest_question)
         self.assertTrue(testObj.prepare())
 
         with open(self.dest_answer + 'sample_piece_1309.raw', 'rb') as f:
