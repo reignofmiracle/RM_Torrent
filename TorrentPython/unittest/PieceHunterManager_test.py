@@ -12,9 +12,9 @@ class MetaInfoTest(unittest.TestCase):
 
     @unittest.skip("clear")
     def test_new(self):
-        testObj = PieceHunterManager()
+        testObj = PieceHunterManager.start()
         self.assertIsNotNone(testObj)
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
 if __name__ == '__main__':

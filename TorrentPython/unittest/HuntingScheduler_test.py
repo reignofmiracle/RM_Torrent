@@ -19,14 +19,14 @@ class PieceHunterTest(unittest.TestCase):
 
     @unittest.skip("clear")
     def test_new(self):
-        testObj = HuntingScheduler(self.piece_assembler)
+        testObj = HuntingScheduler.start(self.piece_assembler)
         self.assertIsNotNone(testObj)
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
     # @unittest.skip("clear")
     def test_get_order(self):
-        testObj = HuntingScheduler(self.piece_assembler)
+        testObj = HuntingScheduler.start(self.piece_assembler)
         self.assertIsNotNone(testObj)
 
         orders = []
@@ -39,7 +39,7 @@ class PieceHunterTest(unittest.TestCase):
         order = testObj.get_order()
         self.assertIsNone(order)
 
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
 if __name__ == '__main__':

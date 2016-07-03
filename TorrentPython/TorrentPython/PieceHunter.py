@@ -7,39 +7,54 @@ class PieceHunterActor(pykka.ThreadingActor):
         self.piece_hunter = piece_hunter
         self.hunting_scheduler = hunting_scheduler  # DI
         self.piece_assembler = piece_assembler  # DI
-        self.piece_radio = PieceRadio(client_id, metainfo)
+        self.client_id = client_id
+        self.metainfo = metainfo
         self.peer_ip = peer_ip
         self.peer_port = peer_port
 
-        self.piece_radio.subscribe(on_next=self.from_next)
+        self.piece_radio = PieceRadio.start(self.client_id, self.metainfo)
+        self.piece_radio.subscribe(on_next=self.on_subscribe)
+
+        self.connected = False
+        self.bitfield_ext = None
 
     def on_stop(self):
-        self.piece_radio.destroy()
+        self.piece_radio.stop()
         self.piece_hunter.on_completed()
 
     def on_receive(self, message):
-        return message.get('func')(self)
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
 
-    def from_next(self, msg):
-        if msg.id == PieceRadioMessage.CONNECTED:
-            print('connected', self.peer_ip, self.peer_port)
-            self.actor_ref.tell({'func': lambda x: x.download()})
+    def on_subscribe(self, msg):
+        if self.actor_ref.is_alive():
+            self.actor_ref.tell({'func': 'on_next', 'args': (msg,)})
 
-        elif msg.id == PieceRadioMessage.DISCONNECTED:
-            print('disconnected', self.peer_ip, self.peer_port)
+    def on_next(self, msg):
+        if msg.get('id') == 'connected':
+            self.connected = True
+
+        elif msg.get('id') == 'disconnected':
+            self.connected = False
             self.piece_hunter.on_completed()
 
-        elif msg.id == PieceRadioMessage.PIECE:
-            self.piece_assembler.write(*msg.payload)
-            self.hunting_scheduler.complete_order(msg.payload[0])
+        elif msg.get('id') == 'bitfield':
+            self.bitfield_ext = msg.get('payload')
+            self.download()
 
-        elif msg.id == PieceRadioMessage.COMPLETED:
-            self.actor_ref.tell({'func': lambda x: x.download()})
+        elif msg.get('id') == 'piece':
+            self.piece_assembler.write(*msg.get('payload'))
+            self.hunting_scheduler.complete_order(msg.get('payload')[0])
+            self.piece_hunter.on_next({'id': 'downloaded', 'payload': msg.get('payload')[0]})
 
-        elif msg.id == PieceRadioMessage.INTERRUPTED:
-            for order in msg.payload:
+        elif msg.get('id') == 'completed':
+            self.download()
+
+        elif msg.get('id') == 'interrupted':
+            for order in msg.get('payload'):
                 self.hunting_scheduler.cancel_order(order)
-        self.piece_hunter.on_completed()
+            self.piece_hunter.on_completed()
 
     def get_uid(self):
         return self.peer_ip, self.peer_port
@@ -48,18 +63,22 @@ class PieceHunterActor(pykka.ThreadingActor):
         return self.piece_radio.connect(self.peer_ip, self.peer_port)
 
     def download(self):
-        order_list = self.hunting_scheduler.get_order_list(
-            self.piece_radio.get_bitfield_ext(), PieceHunter.REQUEST_ORDER_SIZE)
-        print(order_list)
-        if len(order_list) > 0:
-            self.piece_radio.request(order_list)
-        else:
-            self.on_completed()
+        if self.connected and self.bitfield_ext:
+            order_list = self.hunting_scheduler.get_order_list(
+                self.bitfield_ext, PieceHunter.REQUEST_ORDER_SIZE)
+            if len(order_list) > 0:
+                self.piece_radio.request(order_list)
+            else:
+                self.piece_hunter.on_completed()
 
 
 class PieceHunter(Subject):
 
     REQUEST_ORDER_SIZE = 5
+
+    @staticmethod
+    def start(hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port):
+        return PieceHunter(hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port)
 
     def __init__(self, hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port):
         super(PieceHunter, self).__init__()
@@ -67,17 +86,17 @@ class PieceHunter(Subject):
             self, hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port)
 
     def __del__(self):
-        self.destroy()
+        self.stop()
 
-    def destroy(self):
+    def stop(self):
         if self.actor.is_alive() is True:
-            self.actor.stop()
+            self.actor.tell({'func': 'stop', 'args': None})
 
     def get_uid(self):
-        return self.actor.ask({'func': lambda x: x.get_uid()})
+        return self.actor.ask({'func': 'get_uid', 'args': None})
 
     def connect(self):
-        return self.actor.ask({'func': lambda x: x.connect()})
+        self.actor.tell({'func': 'connect', 'args': None})
 
-    def download(self):
-        return self.actor.ask({'func': lambda x: x.download()})
+    def disconnect(self):
+        self.actor.tell({'func': 'disconnect', 'args': None})

@@ -14,46 +14,44 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
             hunter.stop()
 
     def on_receive(self, message):
-        return message.get('func')(self)
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
 
     def size(self):
         return len(self.piece_hunters)
 
     def register(self, peer_hunter: PieceHunter):
         if peer_hunter:
-            # print('connect', peer_hunter.get_uid())
-            if peer_hunter.connect() is True:
-                print('register', peer_hunter.get_uid())
-                peer_hunter.subscribe(
-                    on_completed=lambda: self.actor_ref.tell({'func': lambda x: x.unregister(peer_hunter)}))
-                self.piece_hunters[peer_hunter.get_uid()] = peer_hunter
-                print('PieceHunter.size', len(self.piece_hunters))
-            else:
-                # print('connection failed', peer_hunter.get_uid())
-                peer_hunter.destroy()
+            self.piece_hunters[peer_hunter.get_uid()] = peer_hunter
+            peer_hunter.subscribe(
+                on_completed=lambda: self.actor_ref.tell({'func': 'unregister', 'args': (peer_hunter,)}))
+            peer_hunter.connect()
 
     def unregister(self, peer_hunter: PieceHunter):
         if peer_hunter:
-            print('unregister', peer_hunter.get_uid())
             self.piece_hunters.pop(peer_hunter.get_uid())
-            peer_hunter.destroy()
-            print('PieceHunter.size', len(self.piece_hunters))
+            peer_hunter.stop()
 
 
 class PieceHunterManager(object):
+
+    @staticmethod
+    def start():
+        return PieceHunterManager()
 
     def __init__(self):
         self.core = PieceHunterManagerActor.start()
 
     def __del__(self):
-        self.destroy()
+        self.stop()
 
-    def destroy(self):
+    def stop(self):
         if self.core.is_alive():
             self.core.stop()
 
     def size(self):
-        return self.core.ask({'func': lambda x: x.size()})
+        return self.core.ask({'func': 'size', 'args': None})
 
     def register(self, piece_hunter: PieceHunter):
-        self.core.tell({'func': lambda x: x.register(piece_hunter)})
+        self.core.tell({'func': 'register', 'args': (piece_hunter,)})

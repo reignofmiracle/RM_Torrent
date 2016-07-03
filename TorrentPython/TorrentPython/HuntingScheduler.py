@@ -27,7 +27,9 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
                                for i in range(self.bitfield_ext.get_piece_num())]
 
     def on_receive(self, message):
-        return message.get('func')(self)
+        func = getattr(self, message.get('func'))
+        args = message.get('args')
+        return func(*args) if args else func()
 
     def get_order_list(self, bitfield_ext, order_size):
         if order_size <= 0:
@@ -60,22 +62,26 @@ class HuntingSchedulerActor(pykka.ThreadingActor):
 
 class HuntingScheduler(object):
 
+    @staticmethod
+    def start(piece_assembler):
+        return HuntingScheduler(piece_assembler)
+
     def __init__(self, piece_assembler):
         self.actor = HuntingSchedulerActor.start(piece_assembler)
 
     def __del__(self):
-        self.destroy()
+        self.stop()
 
-    def destroy(self):
+    def stop(self):
         if self.actor.is_alive():
             self.actor.stop()
 
     def get_order_list(self, bitfield_ext, order_size):
-        return self.actor.ask({'func': lambda x: x.get_order_list(bitfield_ext, order_size)})
+        return self.actor.ask({'func': 'get_order_list', 'args': (bitfield_ext, order_size)})
 
     def complete_order(self, order):
-        self.actor.tell({'func': lambda x: x.complete_order(order)})
+        self.actor.tell({'func': 'complete_order', 'args': (order,)})
 
     def cancel_order(self, order):
-        self.actor.tell({'func': lambda x: x.cancel_order(order)})
+        self.actor.tell({'func': 'cancel_order', 'args': (order,)})
 

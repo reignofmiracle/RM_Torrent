@@ -1,17 +1,17 @@
 import unittest
 
-from TorrentPython.PeerDetective import *
+from TorrentPython.PeerProvider import *
 from TorrentPython.RoutingTable import *
 from TorrentPython.TorrentUtils import *
 
-SAMPLE_INFO_HASH = b'i\x9c\xda\x89Z\xf6\xfb\xd5\xa8\x17\xff\xf4\xfeo\xa8\xab\x87\xe3oH'
-
+SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 
 
-class PeerDetectiveTest(unittest.TestCase):
+class PeerProviderTest(unittest.TestCase):
     def setUp(self):
-        self.info_hash = SAMPLE_INFO_HASH
+        self.metainfo = MetaInfo.create_from_torrent(SAMPLE_TORRENT_PATH)
+        self.assertIsNotNone(self.metainfo)
         self.routing_table = RoutingTable.load(ROUTING_TABLE_PATH)
         pass
 
@@ -19,16 +19,15 @@ class PeerDetectiveTest(unittest.TestCase):
         pass
 
     # @unittest.skip("clear")
-    def test_find_peers(self):
-        testObj = PeerDetective(TorrentUtils.getPeerID(), self.routing_table)
-        peer_list = testObj.find_peers(self.info_hash, 5, 0)
-        self.assertTrue(len(peer_list) > 0)
+    def test_get_peers(self):
+        testObj = PeerProvider.start(TorrentUtils.getPeerID(), self.metainfo, self.routing_table)
+        peer_list = testObj.get_peers(5)
         print(peer_list)
 
         routing_table = testObj.get_routing_table()
         print(routing_table)
 
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
 if __name__ == '__main__':

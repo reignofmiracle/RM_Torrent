@@ -30,13 +30,13 @@ class DownloadManagerTest(unittest.TestCase):
 
     @unittest.skip("clear")
     def test_new(self):
-        testObj = DownloadManager(self.client_id, self.metainfo, self.dest, self.routing_table)
-        testObj.destroy()
+        testObj = DownloadManager.start(self.client_id, self.metainfo, self.dest, self.routing_table)
+        testObj.stop()
         del testObj
 
     # @unittest.skip("wait")
     def test_update(self):
-        testObj = DownloadManager(self.client_id, self.metainfo, self.dest, self.routing_table)
+        testObj = DownloadManager.start(self.client_id, self.metainfo, self.dest, self.routing_table)
         self.assertIsNotNone(testObj)
 
         endEvent = Event()
@@ -65,7 +65,7 @@ class DownloadManagerTest(unittest.TestCase):
             filecmp.cmp(self.dest + self.info.get_name().decode(),
                         self.answer + self.info.get_name().decode()))
 
-        testObj.destroy()
+        testObj.stop()
         del testObj
 
 if __name__ == '__main__':

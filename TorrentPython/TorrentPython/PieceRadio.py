@@ -6,7 +6,7 @@ from TorrentPython.PeerRadio import *
 class PieceRadioActor(pykka.ThreadingActor):
     INVALID_PIECE_INDEX = -1
     PIECE_PER_STEP = 7
-    PEER_RADIO_TIMEOUT = 5  # sec
+    PEER_RADIO_TIMEOUT = 30  # sec
 
     def __init__(self, piece_radio, client_id: bytes, metainfo: MetaInfo):
         super(PieceRadioActor, self).__init__()
@@ -15,15 +15,14 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.metainfo = metainfo
         self.info = metainfo.get_info()
 
-        self.peer_radio = PeerRadio(client_id, metainfo)
+        self.peer_radio = PeerRadio.start(client_id, metainfo)
         self.peer_radio.subscribe(on_next=self.on_subscribe)
 
         self.piece_per_step = PieceRadioActor.PIECE_PER_STEP
         self.peer_radio_timeout = PieceRadioActor.PEER_RADIO_TIMEOUT
 
-        self.bitfield_ext = None
+        self.chock = True  # reset at disconnected
 
-        self.chock = True
         self.piece_indices = None
         self.piece_queue = None
         self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
@@ -32,7 +31,6 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.delay_timer = None
 
     def cleanup(self):
-        self.chock = True
         self.piece_indices = None
         self.piece_queue = None
         self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
@@ -75,13 +73,14 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.on_request()
 
             elif payload.id == Message.BITFIELD:
-                self.bitfield_ext = BitfieldExt.create_with_bitfield_message(self.info.get_piece_num(), payload)
+                bitfield_ext = BitfieldExt.create_with_bitfield_message(self.info.get_piece_num(), payload)
+                self.piece_radio.on_next({'id': 'bitfield', 'payload': bitfield_ext})
 
             elif payload.id == Message.PIECE:
                 self.on_update(payload)
 
     def on_request(self):
-        if self.chock is True or len(self.piece_queue) <= 0:
+        if self.chock is True or self.piece_queue is None or len(self.piece_queue) <= 0:
             return
 
         if int(len(self.piece_queue) / self.piece_per_step) > 0:
@@ -158,9 +157,7 @@ class PieceRadioActor(pykka.ThreadingActor):
 
     def disconnect(self):
         self.peer_radio.disconnect()
-
-    def get_bitfield_ext(self):
-        return self.bitfield_ext
+        self.chock = True
 
     def from_request(self, piece_indices: list):
         self.cleanup()
@@ -187,19 +184,16 @@ class PieceRadio(Subject):
             self.actor.stop()
 
     def set_piece_per_step(self, piece_per_step):
-        return self.actor.tell({'func': 'set_piece_per_step', 'args': (piece_per_step,)})
+        self.actor.tell({'func': 'set_piece_per_step', 'args': (piece_per_step,)})
 
     def set_peer_radio_timeout(self, peer_radio_timeout):
-        return self.actor.tell({'func': 'set_peer_radio_timeout', 'args': (peer_radio_timeout,)})
+        self.actor.tell({'func': 'set_peer_radio_timeout', 'args': (peer_radio_timeout,)})
 
     def connect(self, peer_ip, peer_port):
-        return self.actor.tell({'func': 'connect', 'args':(peer_ip, peer_port)})
+        self.actor.tell({'func': 'connect', 'args':(peer_ip, peer_port)})
 
     def disconnect(self):
-        return self.actor.tell({'func': 'disconnect', 'args': None})
-
-    def get_bitfield_ext(self):
-        return self.actor.ask({'func': 'get_bitfield_ext', 'args': None})
+        self.actor.tell({'func': 'disconnect', 'args': None})
 
     def request(self, piece_indices: list):
         self.actor.tell({'func': 'from_request', 'args': (piece_indices,)})

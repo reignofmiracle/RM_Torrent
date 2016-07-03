@@ -122,7 +122,7 @@ class PeerRadioActor(pykka.ThreadingActor):
 
         handshake = Handshake.get_bytes(self.metainfo.info_hash, self.client_id)
         if handshake is None:
-            self.disconnect()
+            self.on_disconnected()
             return
 
         try:
@@ -134,14 +134,14 @@ class PeerRadioActor(pykka.ThreadingActor):
             received = self.sock.recv(Handshake.TOTAL_LEN)
             msg = Handshake.create(received)
             if msg is None or msg.info_hash != self.metainfo.info_hash:
-                self.disconnect()
+                self.on_disconnected()
                 return
 
             self.sock.send(BitfieldExt.create_empty_bitfield_buffer(self.info.get_piece_num()))
             self.sock.send(Interested.get_bytes())
 
         except:
-            self.disconnect()
+            self.on_disconnected()
             return
 
         self.keepAliveSubscription = Observable.interval(

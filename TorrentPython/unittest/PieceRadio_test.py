@@ -48,7 +48,7 @@ class PieceRadioTest(unittest.TestCase):
 
         piece_assembler = PieceAssembler.start(metainfo, self.dest_question)
 
-        test_obj = PieceRadio(self.client_id, metainfo)
+        test_obj = PieceRadio.start(self.client_id, metainfo)
         self.assertIsNotNone(test_obj)
 
         end_event = Event()
@@ -68,6 +68,9 @@ class PieceRadioTest(unittest.TestCase):
 
         test_obj.subscribe(
             lambda msg: end_event.set() if msg.get('id') == 'interrupted' else None)
+
+        test_obj.subscribe(
+            lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
 
         test_obj.connect(self.peer_ip, self.peer_port)
         test_obj.set_piece_per_step(10)

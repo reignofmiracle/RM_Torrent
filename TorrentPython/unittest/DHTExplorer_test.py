@@ -11,45 +11,28 @@ ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 class DHTExplorerTest(unittest.TestCase):
     def setUp(self):
         self.info_hash = SAMPLE_INFO_HASH
-        # self.addr = ('72.136.88.172', 44822)
-        self.addr = RoutingTable.BITTORRENT_NODE_ADDR
-        # self.routing_table = RoutingTable.INITIAL_ROUTING_TABLE
-        self.routing_table = RoutingTable.load(ROUTING_TABLE_PATH)
+        self.routing_table = RoutingTable.INITIAL_ROUTING_TABLE
+        # self.routing_table = RoutingTable.load(ROUTING_TABLE_PATH)
         pass
 
     def tearDown(self):
         pass
 
-    @unittest.skip("clear")
-    def test_get_peerout(self):
-        testObj = DHTExplorer.get_peerout(5)
-        self.assertFalse(testObj(4))
-        self.assertTrue(testObj(5))
-
-    @unittest.skip("clear")
-    def test_get_peers(self):
-        testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
-        peer_list, routing_table = testObj.get_peers(self.info_hash, *self.addr)
-        self.assertTrue(len(peer_list) > 0 or len(routing_table) > 0)
-        print(peer_list)
-        print(routing_table)
-        del testObj
-
-    @unittest.skip("clear")
-    def test_explore_twice(self):
-        testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
+    # @unittest.skip("clear")
+    def test_explore(self):
+        testObj = DHTExplorer(TorrentUtils.getPeerID(), self.info_hash, self.routing_table)
 
         for i in range(100):
             print(len(testObj.routing_table), testObj.routing_table)
-            peer_list = testObj.explore(self.info_hash, 5, 0)
+            peer_list = testObj.explore(5)
             # self.assertTrue(len(peer_list) > 0)
             print(len(peer_list), peer_list)
 
         del testObj
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_create_routing_table(self):
-        testObj = DHTExplorer(TorrentUtils.getPeerID(), self.routing_table)
+        testObj = DHTExplorer(TorrentUtils.getPeerID(), self.info_hash, self.routing_table)
 
         zero_counter = 0
         for i in range(100):

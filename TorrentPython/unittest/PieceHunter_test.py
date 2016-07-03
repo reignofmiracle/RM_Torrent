@@ -9,12 +9,12 @@ from TorrentPython.RoutingTable import *
 from TorrentPython.TorrentUtils import *
 
 from TorrentPython.PieceAssembler import *
-from TorrentPython.PeerDetective import *
+from TorrentPython.PeerProvider import *
 
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 
-TRANSMISSION_IP = '192.168.10.12'
+TRANSMISSION_IP = '192.168.0.6'
 TRANSMISSION_PORT = 51413
 
 
@@ -32,31 +32,28 @@ class PieceHunterTest(unittest.TestCase):
         self.peer_port = TRANSMISSION_PORT
 
     def tearDown(self):
-        self.hunting_scheduler.destroy()
+        self.hunting_scheduler.stop()
         self.piece_assembler.stop()
 
     @unittest.skip("clear")
     def test_create(self):
-        testObj = PieceHunter(
+        testObj = PieceHunter.start(
             self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
-        testObj.destroy()
-        del testObj
+        testObj.stop()
 
     # @unittest.skip("clear")
     def test_download(self):
-        testObj = PieceHunter(
+        testObj = PieceHunter.start(
             self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, self.peer_ip, self.peer_port)
         self.assertIsNotNone(testObj)
 
         endEvent = Event()
         testObj.subscribe(on_next=lambda x: print(x), on_completed=lambda: endEvent.set())
-        self.assertTrue(testObj.connect())
-        # testObj.download()
+        testObj.connect()
 
         endEvent.wait()
-        testObj.destroy()
-        del testObj
+        testObj.stop()
 
 if __name__ == '__main__':
     unittest.main()

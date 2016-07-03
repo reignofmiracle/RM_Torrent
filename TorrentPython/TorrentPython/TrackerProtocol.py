@@ -15,11 +15,10 @@ class TrackerProtocol(object):
         TRACKER_ID = None
 
     @staticmethod
-    def get_request(info_hash, client_id, port):
+    def get_request(client_id, info_hash):
         payload = dict()
         payload['info_hash'] = urllib.parse.quote(info_hash, safe='%')
         payload['peer_id'] = urllib.parse.quote(client_id, safe='%')
-        payload['port'] = port
         payload['uploaded'] = 0
         payload['downloaded'] = 0
         payload['left'] = 100
@@ -31,11 +30,11 @@ class TrackerProtocol(object):
     @staticmethod
     def parse_peers(response: dict):  # decoded
         if response.get(b'failure reason'):
-            return None
+            return []
 
         peers = response.get(b'peers')
         if peers is None or len(peers) % 6 is not 0:
-            return None
+            return []
 
         return [(socket.inet_ntoa(peers[i:i+4]), struct.unpack('!H', peers[i+4:i+4+2])[0])
                 for i in range(0, len(peers), 6)]
