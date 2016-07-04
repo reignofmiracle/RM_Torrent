@@ -22,11 +22,13 @@ class PeerProviderActor(pykka.ThreadingActor):
         self.explorer.set_expedition_timeout(expedition_timeout)
 
     def get_peers(self, peer_limit):
-        peers = self.tracker_service.get_peers()
-        if len(peers) > 0:
-            return peers
-
-        return self.explorer.explore(peer_limit)
+        # peers = self.tracker_service.get_peers()
+        # if len(peers) > 0:
+        #     return peers
+        #
+        # return self.explorer.explore(peer_limit)
+        # return [('192.168.10.12', 51413), ('192.168.10.4', 51413)]
+        return [('192.168.10.4', 51413)]
 
     def get_routing_table(self):
         return self.explorer.routing_table

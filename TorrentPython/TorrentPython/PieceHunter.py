@@ -2,6 +2,8 @@ from TorrentPython.PieceRadio import *
 
 
 class PieceHunterActor(pykka.ThreadingActor):
+    DEFAULT_REQUEST_ORDER_SIZE = 5
+
     def __init__(self, piece_hunter, hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port):
         super(PieceHunterActor, self).__init__()
         self.piece_hunter = piece_hunter
@@ -15,6 +17,7 @@ class PieceHunterActor(pykka.ThreadingActor):
         self.piece_radio = PieceRadio.start(self.client_id, self.metainfo)
         self.piece_radio.subscribe(on_next=self.on_subscribe)
 
+        self.request_order_size = PieceHunterActor.DEFAULT_REQUEST_ORDER_SIZE
         self.connected = False
         self.bitfield_ext = None
 
@@ -56,6 +59,9 @@ class PieceHunterActor(pykka.ThreadingActor):
                 self.hunting_scheduler.cancel_order(order)
             self.piece_hunter.on_completed()
 
+    def set_request_order_size(self, request_order_size):
+        self.request_order_size = request_order_size
+
     def get_uid(self):
         return self.peer_ip, self.peer_port
 
@@ -65,7 +71,7 @@ class PieceHunterActor(pykka.ThreadingActor):
     def download(self):
         if self.connected and self.bitfield_ext:
             order_list = self.hunting_scheduler.get_order_list(
-                self.bitfield_ext, PieceHunter.REQUEST_ORDER_SIZE)
+                self.bitfield_ext, self.request_order_size)
             if len(order_list) > 0:
                 self.piece_radio.request(order_list)
             else:
@@ -73,8 +79,6 @@ class PieceHunterActor(pykka.ThreadingActor):
 
 
 class PieceHunter(Subject):
-
-    REQUEST_ORDER_SIZE = 5
 
     @staticmethod
     def start(hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port):
@@ -91,6 +95,9 @@ class PieceHunter(Subject):
     def stop(self):
         if self.actor.is_alive() is True:
             self.actor.tell({'func': 'stop', 'args': None})
+
+    def set_request_order_size(self, request_order_size):
+        return self.actor.ask({'func': 'set_request_order_size', 'args': (request_order_size,)})
 
     def get_uid(self):
         return self.actor.ask({'func': 'get_uid', 'args': None})

@@ -9,7 +9,7 @@ from TorrentPython.TorrentUtils import TorrentUtils
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-PEER_IP = '192.168.10.12'
+PEER_IP = '192.168.10.4'
 PEER_PORT = 51413
 
 
@@ -41,8 +41,8 @@ class PeerRadioTest(unittest.TestCase):
         end_event = Event()
 
         test_obj.subscribe(lambda msg: print(msg.get('id'), msg.get('payload')))
-        test_obj.subscribe(
-            lambda msg: test_obj.stop() if msg.get('id') == 'msg' and msg.get('payload').id == Message.UNCHOCK else None)
+        # test_obj.subscribe(
+        #     lambda msg: test_obj.stop() if msg.get('id') == 'msg' and msg.get('payload').id == Message.UNCHOCK else None)
         test_obj.subscribe(
             lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
         test_obj.subscribe(on_completed=lambda: end_event.set())
@@ -73,6 +73,10 @@ class PeerRadioTest(unittest.TestCase):
                     end_event.set()
 
         test_obj.subscribe(lambda msg: handler(msg))
+        test_obj.subscribe(
+            lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
+        test_obj.subscribe(on_completed=lambda: end_event.set())
+        test_obj.subscribe(on_completed=lambda: print('on_completed'))
 
         test_obj.connect(self.peer_ip, self.peer_port)
 

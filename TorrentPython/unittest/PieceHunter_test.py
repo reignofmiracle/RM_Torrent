@@ -14,7 +14,7 @@ from TorrentPython.PeerProvider import *
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 
-TRANSMISSION_IP = '192.168.0.6'
+TRANSMISSION_IP = '192.168.10.4'
 TRANSMISSION_PORT = 51413
 
 

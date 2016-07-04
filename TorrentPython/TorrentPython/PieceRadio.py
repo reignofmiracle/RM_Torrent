@@ -6,7 +6,7 @@ from TorrentPython.PeerRadio import *
 class PieceRadioActor(pykka.ThreadingActor):
     INVALID_PIECE_INDEX = -1
     PIECE_PER_STEP = 7
-    PEER_RADIO_TIMEOUT = 30  # sec
+    PEER_RADIO_TIMEOUT = 5  # sec
 
     def __init__(self, piece_radio, client_id: bytes, metainfo: MetaInfo):
         super(PieceRadioActor, self).__init__()
@@ -77,7 +77,9 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.piece_radio.on_next({'id': 'bitfield', 'payload': bitfield_ext})
 
             elif payload.id == Message.PIECE:
+                print('piece', payload.index, payload.begin, len(payload.block))
                 self.on_update(payload)
+
 
     def on_request(self):
         if self.chock is True or self.piece_queue is None or len(self.piece_queue) <= 0:
@@ -89,6 +91,7 @@ class PieceRadioActor(pykka.ThreadingActor):
             self.working_step = len(self.piece_queue) % self.piece_per_step
 
         for i in range(0, self.working_step):
+            print('request', i)
             index = self.piece_queue[i]
             piece_length = self.info.get_piece_length_index(index)
 
@@ -125,7 +128,8 @@ class PieceRadioActor(pykka.ThreadingActor):
 
                 return True
 
-        self.interrupted()
+        # self.interrupted()
+        print('+++++++')
 
     def interrupted(self):
         self.piece_radio.on_next({'id': 'interrupted', 'payload': self.piece_queue})
@@ -181,7 +185,7 @@ class PieceRadio(Subject):
 
     def stop(self):
         if self.actor.is_alive():
-            self.actor.stop()
+            self.actor.tell({'func': 'stop', 'args': None})
 
     def set_piece_per_step(self, piece_per_step):
         self.actor.tell({'func': 'set_piece_per_step', 'args': (piece_per_step,)})

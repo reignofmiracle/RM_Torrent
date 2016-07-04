@@ -1,6 +1,6 @@
-import filecmp
-
 import unittest
+import filecmp
+import time
 
 from threading import Event
 from rx import *
@@ -34,8 +34,19 @@ class DownloadManagerTest(unittest.TestCase):
         testObj.stop()
         del testObj
 
+    @unittest.skip("wait")
+    def test_on_off(self):
+        test_obj = DownloadManager.start(self.client_id, self.metainfo, self.dest, self.routing_table)
+        self.assertIsNotNone(test_obj)
+        test_obj.subscribe(lambda msg: print(msg))
+        test_obj.on()
+        time.sleep(10)
+        # test_obj.off()
+        test_obj.stop()
+        del test_obj
+
     # @unittest.skip("wait")
-    def test_update(self):
+    def test_download(self):
         testObj = DownloadManager.start(self.client_id, self.metainfo, self.dest, self.routing_table)
         self.assertIsNotNone(testObj)
 
@@ -57,7 +68,7 @@ class DownloadManagerTest(unittest.TestCase):
                 print('on_error')
 
         testObj.subscribe(DownloadManagerObserver(endEvent))
-        testObj.update()
+        testObj.on()
 
         endEvent.wait()
 

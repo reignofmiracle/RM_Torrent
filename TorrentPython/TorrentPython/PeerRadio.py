@@ -137,7 +137,6 @@ class PeerRadioActor(pykka.ThreadingActor):
                 self.on_disconnected()
                 return
 
-            self.sock.send(BitfieldExt.create_empty_bitfield_buffer(self.info.get_piece_num()))
             self.sock.send(Interested.get_bytes())
 
         except:
