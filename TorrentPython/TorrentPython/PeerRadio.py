@@ -109,10 +109,13 @@ class PeerRadioActor(pykka.ThreadingActor):
             self.chock = False
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
-        elif msg.id == Message.PIECE:
+        elif msg.id == Message.BITFIELD:
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
-        elif msg.id == Message.BITFIELD:
+        elif msg.id == Message.HAVE:
+            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
+
+        elif msg.id == Message.PIECE:
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
     def connect(self, peer_ip, peer_port):

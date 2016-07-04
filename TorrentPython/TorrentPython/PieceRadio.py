@@ -4,8 +4,6 @@ from TorrentPython.PeerRadio import *
 
 
 class PieceRadioActor(pykka.ThreadingActor):
-    INVALID_PIECE_INDEX = -1
-    PIECE_PER_STEP = 7
     PEER_RADIO_TIMEOUT = 5  # sec
 
     def __init__(self, piece_radio, client_id: bytes, metainfo: MetaInfo):
@@ -18,28 +16,40 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.peer_radio = PeerRadio.start(client_id, metainfo)
         self.peer_radio.subscribe(on_next=self.on_subscribe)
 
-        self.piece_per_step = PieceRadioActor.PIECE_PER_STEP
         self.peer_radio_timeout = PieceRadioActor.PEER_RADIO_TIMEOUT
 
         self.chock = True  # reset at disconnected
 
         self.piece_indices = None
-        self.piece_queue = None
-        self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
-        self.working_piece = b''  # rm_notice
-        self.working_step = 0
+        self.piece_storage = None
+        self.request_prepared = False
         self.delay_timer = None
 
     def cleanup(self):
         self.piece_indices = None
-        self.piece_queue = None
-        self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
-        self.working_piece = b''  # rm_notice
-        self.working_step = 0
+        self.piece_storage = None
+        self.request_prepared = False
 
         if self.delay_timer is not None:
             self.delay_timer.cancel()
             self.delay_timer = None
+
+    def prepare_request(self, piece_indices: list):
+        if self.request_prepared is True:
+            return False
+
+        if piece_indices is None or len(piece_indices) <= 0:
+            return False
+
+        self.piece_indices = piece_indices
+        self.piece_storage = {}
+        for index in self.piece_indices:
+            piece_length = self.info.get_piece_length_index(index)
+            block_num = math.ceil(piece_length / PeerRadioActor.BLOCK_SIZE)
+            self.piece_storage[index] = [None for _ in range(block_num)]
+        self.request_prepared = True
+
+        return True
 
     def on_stop(self):
         self.peer_radio.stop()
@@ -60,6 +70,7 @@ class PieceRadioActor(pykka.ThreadingActor):
             self.piece_radio.on_next(msg)
 
         elif msg.get('id') == 'disconnected':
+            self.chock = True
             self.piece_radio.on_next(msg)
 
         elif msg.get('id') == 'msg':
@@ -71,30 +82,25 @@ class PieceRadioActor(pykka.ThreadingActor):
             elif payload.id == Message.UNCHOCK:
                 self.chock = False
                 self.on_request()
+                self.piece_radio.on_next({'id': 'unchock', 'payload': None})
 
             elif payload.id == Message.BITFIELD:
                 bitfield_ext = BitfieldExt.create_with_bitfield_message(self.info.get_piece_num(), payload)
                 self.piece_radio.on_next({'id': 'bitfield', 'payload': bitfield_ext})
 
+            elif payload.id == Message.HAVE:
+                self.piece_radio.on_next({'id': 'have', 'payload': payload.index})
+
             elif payload.id == Message.PIECE:
-                print('piece', payload.index, payload.begin, len(payload.block))
+                # print('piece', payload.index, payload.begin, len(payload.block))
                 self.on_update(payload)
 
-
     def on_request(self):
-        if self.chock is True or self.piece_queue is None or len(self.piece_queue) <= 0:
+        if self.chock is True or self.request_prepared is False:
             return
 
-        if int(len(self.piece_queue) / self.piece_per_step) > 0:
-            self.working_step = self.piece_per_step
-        else:
-            self.working_step = len(self.piece_queue) % self.piece_per_step
-
-        for i in range(0, self.working_step):
-            print('request', i)
-            index = self.piece_queue[i]
+        for index in self.piece_indices:
             piece_length = self.info.get_piece_length_index(index)
-
             block_num = int(piece_length / PeerRadioActor.BLOCK_SIZE)
             block_remain = piece_length % PeerRadioActor.BLOCK_SIZE
             for j in range(0, block_num):
@@ -107,29 +113,25 @@ class PieceRadioActor(pykka.ThreadingActor):
     def on_update(self, msg):
         self.start_timer()
 
-        if msg.begin == len(self.working_piece):
-            if self.working_piece_index in (msg.index, PieceRadioActor.INVALID_PIECE_INDEX):
-                self.working_piece_index = msg.index
-                self.working_piece += msg.block
+        storage = self.piece_storage.get(msg.index)
+        if storage is None:
+            print('unexpected piece index', msg.index, msg.begin, len(msg.block))
+            return False
 
-                if self.info.get_piece_length_index(self.working_piece_index) == len(self.working_piece):
-                    self.piece_radio.on_next({'id': 'piece', 'payload': (self.working_piece_index, self.working_piece)})
-                    self.piece_queue.remove(self.working_piece_index)
-                    self.working_piece_index = PieceRadioActor.INVALID_PIECE_INDEX
-                    self.working_piece = b''
+        block_index = int(msg.begin / PeerRadioActor.BLOCK_SIZE)
+        if block_index >= len(storage):
+            print('unexpected piece begin', msg.index, msg.begin, len(msg.block))
+            return False
 
-                    if len(self.piece_queue) == 0:
-                        self.piece_radio.on_next({'id': 'completed', 'payload': None})
-                        self.cleanup()
-                    else:
-                        self.working_step -= 1
-                        if self.working_step == 0:
-                            self.on_request()
+        storage[block_index] = msg.block
 
-                return True
+        if all(storage):
+            self.piece_radio.on_next({'id': 'piece', 'payload': (msg.index, b''.join(storage))})
+            self.piece_storage.pop(msg.index)
 
-        # self.interrupted()
-        print('+++++++')
+            if len(self.piece_storage) == 0:
+                self.cleanup()
+                self.piece_radio.on_next({'id': 'completed', 'payload': None})
 
     def interrupted(self):
         self.piece_radio.on_next({'id': 'interrupted', 'payload': self.piece_queue})
@@ -150,9 +152,6 @@ class PieceRadioActor(pykka.ThreadingActor):
         if self.piece_queue and len(self.piece_queue) > 0:
             self.interrupted()
 
-    def set_piece_per_step(self, piece_per_step):
-        self.piece_per_step = piece_per_step
-
     def set_peer_radio_timeout(self, peer_radio_timeout):
         self.peer_radio_timeout = peer_radio_timeout
 
@@ -161,13 +160,10 @@ class PieceRadioActor(pykka.ThreadingActor):
 
     def disconnect(self):
         self.peer_radio.disconnect()
-        self.chock = True
 
     def from_request(self, piece_indices: list):
-        self.cleanup()
-        self.piece_indices = piece_indices
-        self.piece_queue = piece_indices.copy()
-        self.on_request()
+        if self.prepare_request(piece_indices) is True:
+            self.on_request()
 
 
 class PieceRadio(Subject):
@@ -186,9 +182,6 @@ class PieceRadio(Subject):
     def stop(self):
         if self.actor.is_alive():
             self.actor.tell({'func': 'stop', 'args': None})
-
-    def set_piece_per_step(self, piece_per_step):
-        self.actor.tell({'func': 'set_piece_per_step', 'args': (piece_per_step,)})
 
     def set_peer_radio_timeout(self, peer_radio_timeout):
         self.actor.tell({'func': 'set_peer_radio_timeout', 'args': (peer_radio_timeout,)})

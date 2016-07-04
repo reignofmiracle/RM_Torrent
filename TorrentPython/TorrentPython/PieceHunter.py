@@ -42,9 +42,14 @@ class PieceHunterActor(pykka.ThreadingActor):
             self.connected = False
             self.piece_hunter.on_completed()
 
+        elif msg.get('id') == 'unchock':
+            self.download()
+
         elif msg.get('id') == 'bitfield':
             self.bitfield_ext = msg.get('payload')
-            self.download()
+
+        elif msg.get('id') == 'have':
+            self.bitfield_ext.set_have(msg.get('payload'))
 
         elif msg.get('id') == 'piece':
             self.piece_assembler.write(*msg.get('payload'))

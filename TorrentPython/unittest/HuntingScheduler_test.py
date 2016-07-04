@@ -25,7 +25,7 @@ class PieceHunterTest(unittest.TestCase):
         del testObj
 
     # @unittest.skip("clear")
-    def test_get_order(self):
+    def test_get_order_list(self):
         testObj = HuntingScheduler.start(self.piece_assembler)
         self.assertIsNotNone(testObj)
 

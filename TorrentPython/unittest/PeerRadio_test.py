@@ -1,6 +1,7 @@
+import unittest
+import time
 from threading import Event
 
-import unittest
 from TorrentPython.MetaInfo import MetaInfo
 from TorrentPython.PeerMessage import Message
 from TorrentPython.PeerRadio import PeerRadio
@@ -9,7 +10,7 @@ from TorrentPython.TorrentUtils import TorrentUtils
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-PEER_IP = '192.168.10.4'
+PEER_IP = '192.168.0.5'
 PEER_PORT = 51413
 
 
@@ -33,8 +34,20 @@ class PeerRadioTest(unittest.TestCase):
         self.assertIsNotNone(test_obj)
         test_obj.stop()
 
-    @unittest.skip("clear")
+    # @unittest.skip("clear")
     def test_connect(self):
+        test_obj = PeerRadio.start(self.client_id, self.metainfo)
+        self.assertIsNotNone(test_obj)
+
+        test_obj.subscribe(lambda msg: print(msg.get('id'), msg.get('payload')))
+        test_obj.connect(self.peer_ip, self.peer_port)
+
+        time.sleep(30)
+
+        test_obj.stop()
+
+    @unittest.skip("clear")
+    def test_connect2(self):
         test_obj = PeerRadio.start(self.client_id, self.metainfo)
         self.assertIsNotNone(test_obj)
 
@@ -53,7 +66,7 @@ class PeerRadioTest(unittest.TestCase):
         end_event.wait()
         test_obj.stop()
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_request(self):
         test_obj = PeerRadio.start(self.client_id, self.metainfo)
         self.assertIsNotNone(test_obj)

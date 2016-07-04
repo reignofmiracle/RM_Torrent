@@ -34,9 +34,9 @@ class BitfieldExt(object):
 
     @staticmethod
     def create_bitfield(piece_num, setter):
-        bitfield = [0 for _ in range(math.ceil(piece_num / 8))]
+        bitfield = bytes(math.ceil(piece_num / 8))
         for index in range(piece_num):
-            BitfieldExt.set_value(bitfield, index, setter(index))
+            bitfield = BitfieldExt.set_value(bitfield, index, setter(index))
         return bitfield
 
     @staticmethod
@@ -62,12 +62,12 @@ class BitfieldExt(object):
 
         if value == 0:
             target_byte = ~(0x80 >> bit_pos)
-            bitfield[byte_pos] &= target_byte
+            new_byte = bitfield[byte_pos] & target_byte
         else:
             target_byte = 0x80 >> bit_pos
-            bitfield[byte_pos] |= target_byte
+            new_byte = bitfield[byte_pos] | target_byte
 
-        return True
+        return bitfield[:byte_pos] + struct.pack('B', new_byte) + bitfield[byte_pos + 1:]
 
     @staticmethod
     def create_empty_bitfield_buffer(piece_num):
@@ -87,6 +87,9 @@ class BitfieldExt(object):
 
     def get_bitfield(self):
         return self.bitfield
+
+    def set_have(self, index):
+        self.bitfield = BitfieldExt.set_value(self.bitfield, index, 1)
 
     def have(self, index):
         if index < 0 or index >= self.piece_num:

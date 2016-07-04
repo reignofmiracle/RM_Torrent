@@ -14,7 +14,7 @@ SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
 # PEER_IP = '192.168.10.12'
-PEER_IP = '192.168.10.4'
+PEER_IP = '192.168.0.5'
 PEER_PORT = 51413
 
 
@@ -48,10 +48,22 @@ class PieceRadioTest(unittest.TestCase):
 
         end_event = Event()
 
-        test_obj.subscribe(lambda msg: print(msg.get('id')))
+        received_piece = []
+
+        def check_bitfield(msg):
+            if msg.get('id') == 'bitfield':
+                payload = msg.get('payload')
+                completed_piece_indices = payload.get_completed_piece_indices()
+                print(completed_piece_indices)
+                end_event.set()
+
+        test_obj.subscribe(check_bitfield)
 
         test_obj.subscribe(
-            lambda msg: print(msg.get('payload')[0]) if msg.get('id') == 'piece' else None)
+            lambda msg: print('piece', msg.get('payload')[0]) if msg.get('id') == 'piece' else None)
+
+        test_obj.subscribe(
+            lambda msg: received_piece.append(msg.get('payload')[0]) if msg.get('id') == 'piece' else None)
 
         test_obj.subscribe(
             lambda msg: end_event.set() if msg.get('id') == 'completed' else None)
@@ -63,7 +75,6 @@ class PieceRadioTest(unittest.TestCase):
             lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
 
         test_obj.connect(self.peer_ip, self.peer_port)
-        test_obj.set_piece_per_step(1)
         test_obj.set_peer_radio_timeout(5)
 
         # piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
@@ -73,6 +84,8 @@ class PieceRadioTest(unittest.TestCase):
 
         end_event.wait()
         test_obj.stop()
+
+        self.assertEqual(piece_indices, received_piece)
 
 if __name__ == '__main__':
     unittest.main()

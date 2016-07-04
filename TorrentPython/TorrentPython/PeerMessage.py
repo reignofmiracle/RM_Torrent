@@ -227,12 +227,32 @@ class NotInterested(Message):
 
 
 class Have(Message):
+    INDEX_OFFSET = Message.LEN_SIZE + Message.ID_SIZE
+    INDEX_SIZE = 4
+
     @staticmethod
-    def getBytes(index):
+    def get_bytes(index):
         message_len = struct.pack('!I', 5)
         message_id = struct.pack('!B', Message.HAVE)
         message_payload = struct.pack('!I', index)
         return message_len + message_id + message_payload
+
+    @staticmethod
+    def create(buf: bytes):
+        msg = Message.create(buf)
+        if msg.id is not Message.HAVE:
+            return None
+
+        obj = Have(msg.len, msg.id, msg.buf)
+        obj.index = struct.unpack('!I', msg.buf[Have.INDEX_OFFSET: Have.INDEX_OFFSET + Have.INDEX_SIZE])[0]
+        return obj
+
+    def __init__(self, message_len, message_id, message_buf):
+        super(Have, self).__init__(message_len, message_id, message_buf)
+        self.index = 0
+
+    def __repr__(self):
+        return 'Have'
 
 
 class Bitfield(Message):
