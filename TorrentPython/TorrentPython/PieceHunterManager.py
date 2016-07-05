@@ -10,7 +10,8 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
         self.piece_hunters = {}
 
     def on_stop(self):
-        for hunter in self.piece_hunters:
+        for uid in self.piece_hunters:
+            hunter = self.piece_hunters[uid]
             hunter.stop()
 
     def on_receive(self, message):
@@ -23,10 +24,13 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
 
     def register(self, peer_hunter: PieceHunter):
         if peer_hunter:
-            self.piece_hunters[peer_hunter.get_uid()] = peer_hunter
-            peer_hunter.subscribe(
-                on_completed=lambda: self.actor_ref.tell({'func': 'unregister', 'args': (peer_hunter,)}))
-            peer_hunter.connect()
+            if self.piece_hunters.get(peer_hunter.get_uid()):
+                peer_hunter.stop()
+            else:
+                self.piece_hunters[peer_hunter.get_uid()] = peer_hunter
+                peer_hunter.subscribe(
+                    on_completed=lambda: self.actor_ref.tell({'func': 'unregister', 'args': (peer_hunter,)}))
+                peer_hunter.connect()
 
     def unregister(self, peer_hunter: PieceHunter):
         if peer_hunter:

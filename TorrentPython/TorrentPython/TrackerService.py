@@ -26,6 +26,8 @@ class TrackerService(object):
         self.client_id = client_id
         self.metainfo = metainfo
 
+        self.found_peers = set()
+
         tmp_announce_list = set()
         tmp_announce_list.add(self.metainfo.get_announce())
         if self.metainfo.get_announce_list():
@@ -48,6 +50,12 @@ class TrackerService(object):
 
         if announce_response is None or TrackerService.is_waiting_timea(*announce_response) is False:
             response = TrackerService.request(announce, self.client_id, self.metainfo.info_hash)
-            return TrackerProtocol.parse_peers(Bencode.decode(response)) if response else []
-        else:
-            return []
+            if response:
+                peer_list = []
+                for peer in TrackerProtocol.parse_peers(Bencode.decode(response)):
+                    if peer not in self.found_peers:
+                        peer_list.append(peer)
+                        self.found_peers.add(peer)
+                return peer_list
+
+        return []

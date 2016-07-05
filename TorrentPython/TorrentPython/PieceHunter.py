@@ -73,6 +73,9 @@ class PieceHunterActor(pykka.ThreadingActor):
     def connect(self):
         return self.piece_radio.connect(self.peer_ip, self.peer_port)
 
+    def disconnect(self):
+        return self.piece_radio.disconnect()
+
     def download(self):
         if self.connected and self.bitfield_ext:
             order_list = self.hunting_scheduler.get_order_list(

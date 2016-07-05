@@ -92,7 +92,6 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.piece_radio.on_next({'id': 'have', 'payload': payload.index})
 
             elif payload.id == Message.PIECE:
-                # print('piece', payload.index, payload.begin, len(payload.block))
                 self.on_update(payload)
 
     def on_request(self):
@@ -134,7 +133,7 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.piece_radio.on_next({'id': 'completed', 'payload': None})
 
     def interrupted(self):
-        self.piece_radio.on_next({'id': 'interrupted', 'payload': self.piece_queue})
+        self.piece_radio.on_next({'id': 'interrupted', 'payload': self.piece_indices})
         self.cleanup()
 
     def start_timer(self):
@@ -149,7 +148,7 @@ class PieceRadioActor(pykka.ThreadingActor):
             self.actor_ref.tell({'func': 'check_timeout', 'args': None})
 
     def check_timeout(self):
-        if self.piece_queue and len(self.piece_queue) > 0:
+        if self.request_prepared:
             self.interrupted()
 
     def set_peer_radio_timeout(self, peer_radio_timeout):

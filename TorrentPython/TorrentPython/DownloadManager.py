@@ -12,14 +12,14 @@ from TorrentPython.DownloadStatus import *
 
 class DownloadManagerActor(pykka.ThreadingActor):
 
-    DOWNLOAD_INTERVAL = 5  # sec
-    DOWNLOAD_SPEED_LIMIT = 1024 * 1024 * 10  # 10 MB/s
+    DOWNLOAD_INTERVAL = 10  # sec
+    DOWNLOAD_SPEED_LIMIT = 5  # 5 MB/s
     REPORT_INTERVAL = 1  # sec
 
     FIND_PEER_TIMEOUT = 10  # sec
 
     PIECE_HUNTER_RECRUIT_SIZE = 10
-    PIECE_HUNTER_SIZE_LIMIT = 50
+    PIECE_HUNTER_SIZE_LIMIT = 20
 
     @staticmethod
     def check_expand(status):
@@ -63,6 +63,12 @@ class DownloadManagerActor(pykka.ThreadingActor):
             self.status_reporter.dispose()
             self.status_reporter = None
 
+        if self.download_loop:
+            self.download_loop.dispose()
+            self.download_loop = None
+
+        self.download_status = None
+
         self.piece_assembler.stop()
         self.peer_provider.stop()
         self.hunting_scheduler.stop()
@@ -92,16 +98,22 @@ class DownloadManagerActor(pykka.ThreadingActor):
                 self.piece_hunter_manager.register(PieceHunter.start(
                     self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, *peer))
 
+    def tell_update_status(self, _):
+        if self.actor_ref.is_alive():
+            self.actor_ref.tell({'func': 'update_status', 'args': None})
+
+    def tell_download(self, _):
+        if self.actor_ref.is_alive():
+            self.actor_ref.tell({'func': 'download', 'args': None})
+
     def on(self):
         if self.status_reporter is None:
             self.status_reporter = Observable.interval(
-                DownloadManagerActor.REPORT_INTERVAL * 1000).subscribe(
-                lambda _: self.actor_ref.tell({'func': 'update_status', 'args': None}))
+                DownloadManagerActor.REPORT_INTERVAL * 1000).subscribe(self.tell_update_status)
 
         if self.download_loop is None:
             self.download_loop = Observable.interval(
-                DownloadManagerActor.DOWNLOAD_INTERVAL * 1000).subscribe(
-                lambda _: self.actor_ref.tell({'func': 'download', 'args': None}))
+                DownloadManagerActor.DOWNLOAD_INTERVAL * 1000).subscribe(self.tell_download)
 
     def off(self):
         if self.status_reporter:
