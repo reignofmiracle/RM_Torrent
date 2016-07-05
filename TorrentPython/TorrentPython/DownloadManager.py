@@ -13,8 +13,8 @@ from TorrentPython.DownloadStatus import *
 class DownloadManagerActor(pykka.ThreadingActor):
 
     DOWNLOAD_INTERVAL = 10  # sec
-    DOWNLOAD_SPEED_LIMIT = 5  # 5 MB/s
-    REPORT_INTERVAL = 1  # sec
+    DOWNLOAD_SPEED_LIMIT = 5000  # 5000 kB/s
+    REPORT_INTERVAL = 5  # sec
 
     FIND_PEER_TIMEOUT = 10  # sec
 
@@ -50,24 +50,26 @@ class DownloadManagerActor(pykka.ThreadingActor):
 
         self.download_status = None
         self.status_reporter = None
-        self.download_loop = None
+        self.update_download_timer = None
+        self.running = False
 
     def on_start(self):
-        bitfield_ext = self.piece_assembler.get_bitfield_ext()
-        download_speed = 0
-        peer_list = []
-        self.download_status = DownloadStatus(bitfield_ext, download_speed, peer_list)
+        self.download_status = DownloadStatus()
+        self.download_status.elapsed_time = 0
+        self.download_status.bitfield_ext = self.piece_assembler.get_bitfield_ext()
+        self.download_status.download_speed = 0
+        self.download_status.peer_size = 0
 
     def on_stop(self):
         if self.status_reporter:
             self.status_reporter.dispose()
             self.status_reporter = None
-
-        if self.download_loop:
-            self.download_loop.dispose()
-            self.download_loop = None
-
         self.download_status = None
+
+        if self.update_download_timer:
+            self.update_download_timer.cancel()
+            self.update_download_timer = None
+        self.running = False
 
         self.piece_assembler.stop()
         self.peer_provider.stop()
@@ -79,50 +81,70 @@ class DownloadManagerActor(pykka.ThreadingActor):
         args = message.get('args')
         return func(*args) if args else func()
 
-    def update_status(self):
-        current_bitfield_ext = self.piece_assembler.get_bitfield_ext()
-        elapsed_time = DownloadManagerActor.REPORT_INTERVAL
-        current_completed_piece_indices = current_bitfield_ext.get_completed_piece_indices()
-        last_completed_piece_indices = self.download_status.bitfield_ext.get_completed_piece_indices()
-        downloaded_piece_indices = current_completed_piece_indices - last_completed_piece_indices
-        download_speed = (len(downloaded_piece_indices) * self.info.get_piece_length() / elapsed_time) / 1024 / 1024
-        self.download_status = DownloadStatus(current_bitfield_ext, download_speed, self.piece_hunter_manager.size())
+    def update_status(self, elapsed_time):
+        bitfield_ext = self.piece_assembler.get_bitfield_ext()
+
+        current_completed_piece_size = bitfield_ext.get_completed_piece_size()
+        initial_completed_piece_size = self.download_status.bitfield_ext.get_completed_piece_size()
+        downloaded_piece_size = current_completed_piece_size - initial_completed_piece_size
+
+        self.download_status = DownloadStatus()
+        self.download_status.elapsed_time = elapsed_time * DownloadManagerActor.REPORT_INTERVAL
+        self.download_status.bitfield_ext = bitfield_ext
+        self.download_status.download_speed = (
+            downloaded_piece_size * self.info.get_piece_length() / DownloadManagerActor.REPORT_INTERVAL / 1024)
+        self.download_status.peer_size = self.piece_hunter_manager.size()
+
         self.download_manager.on_next(self.download_status)
 
-    def download(self):
-        if DownloadManagerActor.check_expand(self.download_status):
-            peer_list = self.peer_provider.get_peers(DownloadManagerActor.PIECE_HUNTER_RECRUIT_SIZE)
-            print('peer_list', peer_list)
-
-            for peer in peer_list:
-                self.piece_hunter_manager.register(PieceHunter.start(
-                    self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, *peer))
-
-    def tell_update_status(self, _):
+    def tell_update_status(self, t):
         if self.actor_ref.is_alive():
-            self.actor_ref.tell({'func': 'update_status', 'args': None})
+            self.actor_ref.tell({'func': 'update_status', 'args': (t, )})
 
-    def tell_download(self, _):
+    def update_download(self):
+        if self.running:
+            if DownloadManagerActor.check_expand(self.download_status):
+                peer_list = self.peer_provider.get_peers(DownloadManagerActor.PIECE_HUNTER_RECRUIT_SIZE)
+                print('peer_list', peer_list)
+
+                for peer in peer_list:
+                    self.piece_hunter_manager.register(PieceHunter.start(
+                        self.hunting_scheduler, self.piece_assembler, self.client_id, self.metainfo, *peer))
+
+            self.start_update_download_timer()
+
+    def start_update_download_timer(self):
+        if self.update_download_timer is not None:
+            self.update_download_timer.cancel()
+
+        self.update_download_timer = threading.Timer(
+            DownloadManagerActor.DOWNLOAD_INTERVAL, self.update_download_timer_async)
+        self.update_download_timer.daemon = True
+        self.update_download_timer.start()
+
+    def update_download_timer_async(self):
         if self.actor_ref.is_alive():
-            self.actor_ref.tell({'func': 'download', 'args': None})
+            self.actor_ref.tell({'func': 'update_download', 'args': None})
 
     def on(self):
+        self.running = True
+
         if self.status_reporter is None:
             self.status_reporter = Observable.interval(
                 DownloadManagerActor.REPORT_INTERVAL * 1000).subscribe(self.tell_update_status)
 
-        if self.download_loop is None:
-            self.download_loop = Observable.interval(
-                DownloadManagerActor.DOWNLOAD_INTERVAL * 1000).subscribe(self.tell_download)
+        self.update_download()
 
     def off(self):
+        self.running = False
+
         if self.status_reporter:
             self.status_reporter.dispose()
             self.status_reporter = None
 
-        if self.download_loop:
-            self.download_loop.dispose()
-            self.download_loop = None
+        if self.update_download_timer:
+            self.update_download_timer.cancel()
+            self.update_download_timer = None
 
 
 class DownloadManager(Subject):

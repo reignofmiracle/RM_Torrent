@@ -72,6 +72,9 @@ class BitfieldExt(object):
 
         return missing_piece_indices
 
+    def get_missing_piece_size(self):
+        return len(self.bitfield) - sum(self.bitfield)
+
     def get_completed_piece_indices(self):
         completed_piece_indices = set()
         for i, v in enumerate(self.bitfield):
@@ -79,6 +82,9 @@ class BitfieldExt(object):
                 completed_piece_indices.add(i)
 
         return completed_piece_indices
+
+    def get_completed_piece_size(self):
+        return sum(self.bitfield)
 
     def get_percent(self):
         return (sum(self.bitfield) / len(self.bitfield)) * 100

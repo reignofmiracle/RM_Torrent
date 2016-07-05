@@ -10,8 +10,11 @@ from TorrentPython.TorrentUtils import TorrentUtils
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-PEER_IP = '192.168.0.5'
-PEER_PORT = 51413
+# PEER_IP = '192.168.0.5'
+# PEER_PORT = 51413
+
+PEER_IP = '109.229.161.139'
+PEER_PORT = 15737
 
 
 class PeerRadioTest(unittest.TestCase):

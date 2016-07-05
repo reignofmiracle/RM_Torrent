@@ -75,7 +75,6 @@ class PieceRadioTest(unittest.TestCase):
             lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
 
         test_obj.connect(self.peer_ip, self.peer_port)
-        test_obj.set_peer_radio_timeout(5)
 
         # piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
         piece_indices = [0, 1, 2, 3, 4]

@@ -94,7 +94,7 @@ class Message(object):
     def get_class(message_id):
         if message_id == Message.KEEP_ALIVE:
             return KeepAlive
-        if message_id == Message.CHOCK:
+        elif message_id == Message.CHOCK:
             return Chock
         elif message_id == Message.UNCHOCK:
             return Unchock
@@ -136,7 +136,8 @@ class Message(object):
 
 
 class KeepAlive(Message):
-    MESSAGE = b'\x00\x00\x00\x00'
+    # MESSAGE = b'\x00\x00\x00\x00'
+    MESSAGE = b''
 
     @staticmethod
     def get_bytes():

@@ -24,18 +24,30 @@ class PieceHunterManagerActor(pykka.ThreadingActor):
 
     def register(self, peer_hunter: PieceHunter):
         if peer_hunter:
-            if self.piece_hunters.get(peer_hunter.get_uid()):
-                peer_hunter.stop()
-            else:
-                self.piece_hunters[peer_hunter.get_uid()] = peer_hunter
-                peer_hunter.subscribe(
-                    on_completed=lambda: self.actor_ref.tell({'func': 'unregister', 'args': (peer_hunter,)}))
-                peer_hunter.connect()
+            print('register', peer_hunter.get_uid())
+            self.piece_hunters[peer_hunter.get_uid()] = peer_hunter
 
     def unregister(self, peer_hunter: PieceHunter):
         if peer_hunter:
-            self.piece_hunters.pop(peer_hunter.get_uid())
+            uid = peer_hunter.get_uid()
             peer_hunter.stop()
+
+            if uid in self.piece_hunters:
+                self.piece_hunters.pop(uid)
+                print('unregister', uid)
+
+    def from_register(self, peer_hunter: PieceHunter):
+        if peer_hunter:
+            if peer_hunter.get_uid() in self.piece_hunters:
+                peer_hunter.stop()
+            else:
+                def register_at_connected(msg):
+                    if msg.get('id') == 'connected':
+                        self.actor_ref.tell({'func': 'register', 'args': (peer_hunter,)})
+                peer_hunter.subscribe(
+                    on_next=register_at_connected,
+                    on_completed=lambda: self.actor_ref.tell({'func': 'unregister', 'args': (peer_hunter,)}))
+                peer_hunter.connect()
 
 
 class PieceHunterManager(object):
@@ -58,4 +70,4 @@ class PieceHunterManager(object):
         return self.core.ask({'func': 'size', 'args': None})
 
     def register(self, piece_hunter: PieceHunter):
-        self.core.tell({'func': 'register', 'args': (piece_hunter,)})
+        self.core.tell({'func': 'from_register', 'args': (piece_hunter,)})

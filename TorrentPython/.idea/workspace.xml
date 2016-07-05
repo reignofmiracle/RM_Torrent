@@ -5,12 +5,17 @@
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/BitfieldExt.py" afterPath="$PROJECT_DIR$/TorrentPython/BitfieldExt.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/DownloadManager.py" afterPath="$PROJECT_DIR$/TorrentPython/DownloadManager.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/DownloadStatus.py" afterPath="$PROJECT_DIR$/TorrentPython/DownloadStatus.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PeerMessage.py" afterPath="$PROJECT_DIR$/TorrentPython/PeerMessage.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PeerProvider.py" afterPath="$PROJECT_DIR$/TorrentPython/PeerProvider.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PeerRadio.py" afterPath="$PROJECT_DIR$/TorrentPython/PeerRadio.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PieceAssembler.py" afterPath="$PROJECT_DIR$/TorrentPython/PieceAssembler.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PieceHunter.py" afterPath="$PROJECT_DIR$/TorrentPython/PieceHunter.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PieceHunterManager.py" afterPath="$PROJECT_DIR$/TorrentPython/PieceHunterManager.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/PieceRadio.py" afterPath="$PROJECT_DIR$/TorrentPython/PieceRadio.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/TorrentPython/TrackerService.py" afterPath="$PROJECT_DIR$/TorrentPython/TrackerService.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/unittest/PeerRadio_test.py" afterPath="$PROJECT_DIR$/unittest/PeerRadio_test.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/unittest/PieceRadio_test.py" afterPath="$PROJECT_DIR$/unittest/PieceRadio_test.py" />
     </list>
     <ignored path="TorrentPython.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -78,7 +83,6 @@
         <option value="$PROJECT_DIR$/TorrentPython/MetaInfo.py" />
         <option value="$PROJECT_DIR$/unittest/PieceAssembler_test.py" />
         <option value="$PROJECT_DIR$/TorrentPython/PeerDetective.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/PieceAssembler.py" />
         <option value="$PROJECT_DIR$/unittest/DHTExplorer_test.py" />
         <option value="$PROJECT_DIR$/TorrentPython/DHTExplorer.py" />
         <option value="$PROJECT_DIR$/TorrentPython/TrackerProtocol.py" />
@@ -86,22 +90,23 @@
         <option value="$PROJECT_DIR$/unittest/PeerProvider_test.py" />
         <option value="$PROJECT_DIR$/unittest/PieceHunterManager_test.py" />
         <option value="$PROJECT_DIR$/unittest/DownloadManager_test.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/DownloadStatus.py" />
         <option value="$PROJECT_DIR$/unittest/HuntingScheduler_test.py" />
         <option value="$PROJECT_DIR$/unittest/PieceHunter_test.py" />
-        <option value="$PROJECT_DIR$/unittest/PieceRadio_test.py" />
-        <option value="$PROJECT_DIR$/unittest/PeerRadio_test.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/PeerRadio.py" />
         <option value="$PROJECT_DIR$/unittest/BitfieldExt_test.py" />
         <option value="$PROJECT_DIR$/TorrentPython/HuntingScheduler.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/PieceRadio.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/PieceHunter.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/TrackerService.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/PieceHunterManager.py" />
-        <option value="$PROJECT_DIR$/TorrentPython/PeerMessage.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/PieceAssembler.py" />
         <option value="$PROJECT_DIR$/TorrentPython/BitfieldExt.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/DownloadStatus.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/TrackerService.py" />
         <option value="$PROJECT_DIR$/TorrentPython/DownloadManager.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/PieceHunterManager.py" />
+        <option value="$PROJECT_DIR$/unittest/PeerRadio_test.py" />
+        <option value="$PROJECT_DIR$/unittest/PieceRadio_test.py" />
         <option value="$PROJECT_DIR$/TorrentPython/PeerProvider.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/PeerMessage.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/PieceHunter.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/PeerRadio.py" />
+        <option value="$PROJECT_DIR$/TorrentPython/PieceRadio.py" />
       </list>
     </option>
   </component>
@@ -168,6 +173,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scratches" />
+      <pane id="PackagesPane" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -188,9 +195,7 @@
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scratches" />
       <pane id="Scope" />
-      <pane id="PackagesPane" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -282,36 +287,36 @@
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
     </configuration>
-    <configuration default="false" name="PieceRadio_test" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration default="false" name="DownloadManager" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/unittest" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TorrentPython" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="TorrentPython" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/unittest/PieceRadio_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TorrentPython/DownloadManager.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
     </configuration>
-    <configuration default="false" name="BitfieldExt_test" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration default="false" name="PeerRadio" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/unittest" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TorrentPython" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="TorrentPython" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/unittest/BitfieldExt_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TorrentPython/PeerRadio.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -690,16 +695,16 @@
       <item index="0" class="java.lang.String" itemvalue="Python.PieceHunter_test" />
       <item index="1" class="java.lang.String" itemvalue="Python.DownloadManager_test" />
       <item index="2" class="java.lang.String" itemvalue="Python.PeerRadio_test" />
-      <item index="3" class="java.lang.String" itemvalue="Python.PieceRadio_test" />
-      <item index="4" class="java.lang.String" itemvalue="Python.BitfieldExt_test" />
+      <item index="3" class="java.lang.String" itemvalue="Python.DownloadManager" />
+      <item index="4" class="java.lang.String" itemvalue="Python.PeerRadio" />
     </list>
     <recent_temporary>
       <list size="5">
         <item index="0" class="java.lang.String" itemvalue="Python.DownloadManager_test" />
-        <item index="1" class="java.lang.String" itemvalue="Python.PieceHunter_test" />
-        <item index="2" class="java.lang.String" itemvalue="Python.BitfieldExt_test" />
-        <item index="3" class="java.lang.String" itemvalue="Python.PeerRadio_test" />
-        <item index="4" class="java.lang.String" itemvalue="Python.PieceRadio_test" />
+        <item index="1" class="java.lang.String" itemvalue="Python.PeerRadio_test" />
+        <item index="2" class="java.lang.String" itemvalue="Python.PeerRadio" />
+        <item index="3" class="java.lang.String" itemvalue="Python.DownloadManager" />
+        <item index="4" class="java.lang.String" itemvalue="Python.PieceHunter_test" />
       </list>
     </recent_temporary>
   </component>
@@ -769,10 +774,11 @@
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Designer" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.1328125" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20502092" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3451883" sideWeight="0.49583334" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.21443515" sideWeight="0.49583334" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Palette" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -782,7 +788,6 @@
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Capture Tool" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.171875" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20581396" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="UI Designer" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
     </layout>
     <layout-to-restore>
@@ -832,32 +837,17 @@
           <option name="timeStamp" value="285" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="python-line">
-          <url>file://$PROJECT_DIR$/TorrentPython/PieceHunter.py</url>
-          <line>116</line>
-          <option name="timeStamp" value="599" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="python-line">
           <url>file://$PROJECT_DIR$/TorrentPython/PeerRadio.py</url>
-          <line>189</line>
+          <line>198</line>
           <option name="timeStamp" value="604" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="python-line">
           <url>file://$PROJECT_DIR$/TorrentPython/PeerRadio.py</url>
-          <line>159</line>
-          <option name="timeStamp" value="605" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="python-line">
-          <url>file://$PROJECT_DIR$/TorrentPython/PeerRadio.py</url>
-          <line>30</line>
-          <option name="timeStamp" value="606" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="python-line">
-          <url>file://$PROJECT_DIR$/TorrentPython/DownloadManager.py</url>
-          <line>141</line>
-          <option name="timeStamp" value="612" />
+          <line>28</line>
+          <option name="timeStamp" value="688" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="614" />
+      <option name="time" value="689" />
     </breakpoint-manager>
     <watches-manager>
       <configuration name="PythonConfigurationType">
@@ -1035,20 +1025,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/unittest/PieceHunterManager_test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="266">
-          <caret line="14" column="24" selection-start-line="14" selection-start-column="24" selection-end-line="14" selection-end-column="24" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/DownloadStatus.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="38">
-          <caret line="2" column="38" selection-start-line="2" selection-start-column="38" selection-end-line="2" selection-end-column="38" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/unittest/DHTExplorer_test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="133">
@@ -1099,30 +1075,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/unittest/PeerRadio_test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="817">
-          <caret line="43" column="0" selection-start-line="43" selection-start-column="0" selection-end-line="43" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/unittest/PieceRadio_test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="642">
-          <caret line="63" column="0" selection-start-line="63" selection-start-column="0" selection-end-line="63" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/unittest/PieceHunter_test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="825">
-          <caret line="63" column="101" selection-start-line="63" selection-start-column="101" selection-end-line="63" selection-end-column="101" />
-          <folding>
-            <element signature="e#0#15#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/TorrentPython/HuntingScheduler.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1197">
@@ -1131,47 +1083,107 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/PieceHunter.py">
+    <entry file="file://$PROJECT_DIR$/unittest/BitfieldExt_test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="88">
-          <caret line="39" column="0" selection-start-line="39" selection-start-column="0" selection-end-line="39" selection-end-column="0" />
+        <state relative-caret-position="470">
+          <caret line="57" column="53" selection-start-line="57" selection-start-column="53" selection-end-line="57" selection-end-column="53" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TorrentPython/PieceAssembler.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="91">
+          <caret line="142" column="28" selection-start-line="142" selection-start-column="28" selection-end-line="142" selection-end-column="28" />
+          <folding>
+            <element signature="e#0#12#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://D:/Program Files/Python35/Lib/site-packages/pykka/actor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="199">
+          <caret line="191" column="0" selection-start-line="191" selection-start-column="0" selection-end-line="191" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TorrentPython/DHTExplorer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="232">
+          <caret line="29" column="0" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/TorrentPython/TrackerService.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="133">
-          <caret line="11" column="65" selection-start-line="11" selection-start-column="65" selection-end-line="11" selection-end-column="65" />
+        <state relative-caret-position="407">
+          <caret line="53" column="56" selection-start-line="53" selection-start-column="56" selection-end-line="53" selection-end-column="56" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/PieceHunterManager.py">
+    <entry file="file://$PROJECT_DIR$/TorrentPython/BitfieldExt.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="221">
-          <caret line="14" column="25" selection-start-line="14" selection-start-column="25" selection-end-line="14" selection-end-column="25" />
+        <state relative-caret-position="285">
+          <caret line="18" column="0" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/unittest/BitfieldExt_test.py">
+    <entry file="file://$PROJECT_DIR$/TorrentPython/DownloadStatus.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="470">
-          <caret line="57" column="53" selection-start-line="57" selection-start-column="53" selection-end-line="57" selection-end-column="53" />
-          <folding>
-            <element signature="e#1647#1895#0" expanded="false" />
-            <element signature="e#1987#2458#0" expanded="false" />
-            <element signature="e#2552#3025#0" expanded="false" />
-            <element signature="e#3120#4140#0" expanded="false" />
-          </folding>
+        <state relative-caret-position="190">
+          <caret line="10" column="34" selection-start-line="10" selection-start-column="34" selection-end-line="10" selection-end-column="34" />
+          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/PeerMessage.py">
+    <entry file="file://$PROJECT_DIR$/TorrentPython/DownloadManager.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="290">
-          <caret line="264" column="48" selection-start-line="264" selection-start-column="48" selection-end-line="264" selection-end-column="48" />
+        <state relative-caret-position="76">
+          <caret line="90" column="47" selection-start-line="90" selection-start-column="47" selection-end-line="90" selection-end-column="47" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/unittest/PieceRadio_test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="640">
+          <caret line="76" column="54" selection-start-line="76" selection-start-column="54" selection-end-line="76" selection-end-column="54" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/unittest/PieceHunter_test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="450">
+          <caret line="63" column="101" selection-start-line="63" selection-start-column="101" selection-end-line="63" selection-end-column="101" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/unittest/DownloadManager_test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="152">
+          <caret line="18" column="31" selection-start-line="18" selection-start-column="31" selection-end-line="18" selection-end-column="31" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/unittest/PeerRadio_test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="114">
+          <caret line="13" column="19" selection-start-line="13" selection-start-column="19" selection-end-line="13" selection-end-column="19" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TorrentPython/PeerProvider.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="131">
+          <caret line="23" column="26" selection-start-line="23" selection-start-column="26" selection-end-line="23" selection-end-column="26" />
           <folding />
         </state>
       </provider>
@@ -1186,72 +1198,48 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/TorrentPython/PieceRadio.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="256">
-          <caret line="76" column="40" selection-start-line="76" selection-start-column="40" selection-end-line="76" selection-end-column="40" />
+        <state relative-caret-position="456">
+          <caret line="73" column="47" selection-start-line="73" selection-start-column="47" selection-end-line="73" selection-end-column="47" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/PieceAssembler.py">
+    <entry file="file://$PROJECT_DIR$/TorrentPython/PeerMessage.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="338">
-          <caret line="146" column="0" selection-start-line="146" selection-start-column="0" selection-end-line="146" selection-end-column="0" />
+        <state relative-caret-position="361">
+          <caret line="142" column="20" selection-start-line="142" selection-start-column="20" selection-end-line="142" selection-end-column="20" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/BitfieldExt.py">
+    <entry file="file://$PROJECT_DIR$/TorrentPython/PieceHunter.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="209">
-          <caret line="14" column="23" selection-start-line="14" selection-start-column="23" selection-end-line="14" selection-end-column="23" />
+        <state relative-caret-position="670">
+          <caret line="78" column="44" selection-start-line="78" selection-start-column="44" selection-end-line="78" selection-end-column="44" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/unittest/PieceHunterManager_test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="152">
+          <caret line="10" column="12" selection-start-line="10" selection-start-column="12" selection-end-line="10" selection-end-column="12" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/TorrentPython/PeerRadio.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="237">
-          <caret line="87" column="29" selection-start-line="87" selection-start-column="29" selection-end-line="87" selection-end-column="29" />
+        <state relative-caret-position="114">
+          <caret line="28" column="0" selection-start-line="28" selection-start-column="0" selection-end-line="28" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/DHTExplorer.py">
+    <entry file="file://$PROJECT_DIR$/TorrentPython/PieceHunterManager.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="298">
-          <caret line="83" column="0" selection-start-line="83" selection-start-column="0" selection-end-line="83" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/unittest/DownloadManager_test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1254">
-          <caret line="76" column="51" selection-start-line="76" selection-start-column="51" selection-end-line="76" selection-end-column="51" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/DownloadManager.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="38">
-          <caret line="66" column="16" selection-start-line="66" selection-start-column="16" selection-end-line="66" selection-end-column="16" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/TorrentPython/PeerProvider.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="399">
-          <caret line="25" column="26" selection-start-line="25" selection-start-column="26" selection-end-line="25" selection-end-column="26" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/Program Files/Python35/Lib/site-packages/pykka/actor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="199">
-          <caret line="397" column="0" selection-start-line="397" selection-start-column="0" selection-end-line="397" selection-end-column="0" />
+        <state relative-caret-position="133">
+          <caret line="9" column="31" selection-start-line="9" selection-start-column="31" selection-end-line="9" selection-end-column="31" />
           <folding />
         </state>
       </provider>

@@ -27,6 +27,7 @@ class TrackerService(object):
         self.metainfo = metainfo
 
         self.found_peers = set()
+        self.remain_peers = []
 
         tmp_announce_list = set()
         tmp_announce_list.add(self.metainfo.get_announce())
@@ -40,7 +41,12 @@ class TrackerService(object):
         self.announce_response_list = dict()  # (response, request_time)
         self.announce_pos = 0
 
-    def get_peers(self):
+    def get_peers(self, peer_size):
+        if len(self.remain_peers) > 0:
+            peer_list = self.remain_peers[:peer_size]
+            self.remain_peers = self.remain_peers[peer_size:]
+            return peer_list
+
         announce = self.announce_list[self.announce_pos].decode()
         announce_response = self.announce_response_list.get(announce)
 
@@ -48,7 +54,7 @@ class TrackerService(object):
         if self.announce_pos >= len(self.announce_list):
             self.announce_pos = 0
 
-        if announce_response is None or TrackerService.is_waiting_timea(*announce_response) is False:
+        if announce_response is None or TrackerService.is_waiting_time(*announce_response) is False:
             response = TrackerService.request(announce, self.client_id, self.metainfo.info_hash)
             if response:
                 peer_list = []
@@ -56,6 +62,10 @@ class TrackerService(object):
                     if peer not in self.found_peers:
                         peer_list.append(peer)
                         self.found_peers.add(peer)
+
+                self.remain_peers = peer_list
+                peer_list = self.remain_peers[:peer_size]
+                self.remain_peers = self.remain_peers[peer_size:]
                 return peer_list
 
         return []

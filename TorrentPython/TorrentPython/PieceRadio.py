@@ -4,8 +4,6 @@ from TorrentPython.PeerRadio import *
 
 
 class PieceRadioActor(pykka.ThreadingActor):
-    PEER_RADIO_TIMEOUT = 5  # sec
-
     def __init__(self, piece_radio, client_id: bytes, metainfo: MetaInfo):
         super(PieceRadioActor, self).__init__()
         self.piece_radio = piece_radio
@@ -16,23 +14,16 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.peer_radio = PeerRadio.start(client_id, metainfo)
         self.peer_radio.subscribe(on_next=self.on_subscribe)
 
-        self.peer_radio_timeout = PieceRadioActor.PEER_RADIO_TIMEOUT
-
         self.chock = True  # reset at disconnected
 
         self.piece_indices = None
         self.piece_storage = None
         self.request_prepared = False
-        self.delay_timer = None
 
     def cleanup(self):
         self.piece_indices = None
         self.piece_storage = None
         self.request_prepared = False
-
-        if self.delay_timer is not None:
-            self.delay_timer.cancel()
-            self.delay_timer = None
 
     def prepare_request(self, piece_indices: list):
         if self.request_prepared is True:
@@ -71,6 +62,7 @@ class PieceRadioActor(pykka.ThreadingActor):
 
         elif msg.get('id') == 'disconnected':
             self.chock = True
+            self.piece_radio.on_next({'id': 'interrupted', 'payload': list(self.piece_storage.keys())})
             self.piece_radio.on_next(msg)
 
         elif msg.get('id') == 'msg':
@@ -107,11 +99,7 @@ class PieceRadioActor(pykka.ThreadingActor):
             if block_remain > 0:
                 self.peer_radio.request(index, block_num * PeerRadioActor.BLOCK_SIZE, block_remain)
 
-        self.start_timer()
-
     def on_update(self, msg):
-        self.start_timer()
-
         storage = self.piece_storage.get(msg.index)
         if storage is None:
             print('unexpected piece index', msg.index, msg.begin, len(msg.block))
@@ -127,32 +115,11 @@ class PieceRadioActor(pykka.ThreadingActor):
         if all(storage):
             self.piece_radio.on_next({'id': 'piece', 'payload': (msg.index, b''.join(storage))})
             self.piece_storage.pop(msg.index)
+            self.peer_radio.have(msg.index)
 
             if len(self.piece_storage) == 0:
                 self.cleanup()
                 self.piece_radio.on_next({'id': 'completed', 'payload': None})
-
-    def interrupted(self):
-        self.piece_radio.on_next({'id': 'interrupted', 'payload': self.piece_indices})
-        self.cleanup()
-
-    def start_timer(self):
-        if self.delay_timer is not None:
-            self.delay_timer.cancel()
-
-        self.delay_timer = threading.Timer(self.peer_radio_timeout, self.check_timeout_async)
-        self.delay_timer.start()
-
-    def check_timeout_async(self):
-        if self.actor_ref.is_alive():
-            self.actor_ref.tell({'func': 'check_timeout', 'args': None})
-
-    def check_timeout(self):
-        if self.request_prepared:
-            self.interrupted()
-
-    def set_peer_radio_timeout(self, peer_radio_timeout):
-        self.peer_radio_timeout = peer_radio_timeout
 
     def connect(self, peer_ip, peer_port):
         self.peer_radio.connect(peer_ip, peer_port)
@@ -181,9 +148,6 @@ class PieceRadio(Subject):
     def stop(self):
         if self.actor.is_alive():
             self.actor.tell({'func': 'stop', 'args': None})
-
-    def set_peer_radio_timeout(self, peer_radio_timeout):
-        self.actor.tell({'func': 'set_peer_radio_timeout', 'args': (peer_radio_timeout,)})
 
     def connect(self, peer_ip, peer_port):
         self.actor.tell({'func': 'connect', 'args':(peer_ip, peer_port)})

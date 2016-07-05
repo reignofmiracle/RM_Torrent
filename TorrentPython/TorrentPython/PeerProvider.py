@@ -21,17 +21,28 @@ class PeerProviderActor(pykka.ThreadingActor):
     def set_expedition_timeout(self, expedition_timeout):
         self.explorer.set_expedition_timeout(expedition_timeout)
 
-    def get_peers(self, peer_limit):
-        peers = self.tracker_service.get_peers()
-        if len(peers) > 0:
-            return peers
-
-        return self.explorer.explore(peer_limit)
-        # return [('192.168.10.12', 51413), ('192.168.10.2', 51413), ('192.168.10.4', 51413)]
-        # return [('192.168.10.12', 51413), ('192.168.10.4', 51413)]
-
     def get_routing_table(self):
         return self.explorer.routing_table
+
+    def get_peers(self, peer_size):
+        # peers = self.tracker_service.get_peers(peer_size)
+        # if len(peers) > 0:
+        #     return peers
+        #
+        # return self.explorer.explore(peer_size)
+        # time.sleep(3)
+        # return [('192.168.10.12', 51413), ('192.168.10.2', 51413), ('192.168.10.4', 51413)]
+        # return [('192.168.10.12', 51413), ('192.168.10.2', 51413)]
+
+        # return [('39.112.128.233', 51413),
+        #         ('218.236.104.230', 55111),
+        #         ('178.32.59.188', 57551),
+        #         ('109.229.161.139', 15737),
+        #         ('80.190.128.61', 6881),
+        #         ('124.64.202.135', 13176),
+        #         ('109.229.161.139', 15737)]
+
+        return [('39.110.51.141', 6881)]
 
 
 class PeerProvider(object):
@@ -53,8 +64,8 @@ class PeerProvider(object):
     def set_expedition_timeout(self, expedition_timeout):
         return self.actor.ask({'func': 'set_expedition_timeout', 'args': (expedition_timeout, )})
 
-    def get_peers(self, peer_limit=None):
-        return self.actor.ask({'func': 'get_peers', 'args': (peer_limit, )})
-
     def get_routing_table(self):
         return self.actor.ask({'func': 'get_routing_table', 'args': None})
+
+    def get_peers(self, peer_size=None):
+        return self.actor.ask({'func': 'get_peers', 'args': (peer_size, )})

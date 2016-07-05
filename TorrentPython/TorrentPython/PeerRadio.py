@@ -13,8 +13,8 @@ from TorrentPython.PeerMessage import *
 
 
 class PeerRadioActor(pykka.ThreadingActor):
-    SOCKET_TIMEOUT = 2
-    KEEP_ALIVE_TIMEOUT = 60
+    SOCKET_TIMEOUT = 5
+    KEEP_ALIVE_TIMEOUT = 30
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
@@ -40,16 +40,16 @@ class PeerRadioActor(pykka.ThreadingActor):
 
         self.sock = None
         self.recv_main_thread = None
-        self.keepAliveSubscription = None
+        self.keep_alive_subscription = None
 
         self.connected = False
         self.remain = b''
         self.chock = True
 
     def cleanup(self):
-        if self.keepAliveSubscription:
-            self.keepAliveSubscription.dispose()
-            self.keepAliveSubscription = None
+        if self.keep_alive_subscription:
+            self.keep_alive_subscription.dispose()
+            self.keep_alive_subscription = None
 
         self.recv_main_thread = None
 
@@ -97,11 +97,9 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.remain = buf
 
     def on_next(self, msg):
-        if msg.id == Message.CANCEL:
-            self.peer_radio.on_next({'id': 'msg', 'payload': msg})
-            self.disconnect()
+        print(msg)
 
-        elif msg.id == Message.CHOCK:
+        if msg.id == Message.CHOCK:
             self.chock = True
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
@@ -116,6 +114,7 @@ class PeerRadioActor(pykka.ThreadingActor):
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
         elif msg.id == Message.PIECE:
+            # print('piece', msg.index, msg.begin, len(msg.block))
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
     def connect(self, peer_ip, peer_port):
@@ -146,8 +145,8 @@ class PeerRadioActor(pykka.ThreadingActor):
             self.on_disconnected()
             return
 
-        self.keepAliveSubscription = Observable.interval(
-            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(lambda _: self.sock.send(KeepAlive.get_bytes()))
+        self.keep_alive_subscription = Observable.interval(
+            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(self.tell_keep_alive)
 
         self.recv_main_thread = Thread(target=PeerRadioActor.recv_main, args=(self,))
         self.recv_main_thread.daemon = True
@@ -156,14 +155,24 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.connected = True
         self.peer_radio.on_next({'id': 'connected', 'payload': None})
 
+    def tell_keep_alive(self, _):
+        self.actor_ref.tell({'func': 'keep_alive', 'args': None})
+
     def disconnect(self):
         self.cleanup()
+
+    def keep_alive(self):
+        print('keep_alive')
+        self.sock.send(KeepAlive.get_bytes())
 
     def request(self, index, begin, length):
         if not self.chock and 0 < length <= PeerRadioActor.BLOCK_SIZE:
             return self.send(Request.get_bytes(index, begin, length))
         else:
             return False
+
+    def have(self, index):
+        self.send(Have.get_bytes(index))
 
 
 class PeerRadio(Subject):
@@ -190,4 +199,7 @@ class PeerRadio(Subject):
         self.actor.tell({'func': 'disconnect', 'args': None})
 
     def request(self, index, begin, length):
-        return self.actor.tell({'func': 'request', 'args': (index, begin, length)})
+        self.actor.tell({'func': 'request', 'args': (index, begin, length)})
+
+    def have(self, index):
+        self.actor.tell({'func': 'have', 'args': (index, )})
