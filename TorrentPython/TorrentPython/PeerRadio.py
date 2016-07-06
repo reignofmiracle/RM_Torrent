@@ -13,8 +13,8 @@ from TorrentPython.PeerMessage import *
 
 
 class PeerRadioActor(pykka.ThreadingActor):
-    SOCKET_TIMEOUT = 5
-    KEEP_ALIVE_TIMEOUT = 30
+    SOCKET_TIMEOUT = 10
+    KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
@@ -26,10 +26,11 @@ class PeerRadioActor(pykka.ThreadingActor):
             except socket.timeout:
                 pass
             except Exception as e:
-                logging.debug(e)
+                print(e)
+                print(peer_radio_actor.sock)
                 if peer_radio_actor.actor_ref.is_alive():
                     peer_radio_actor.actor_ref.tell({'func': 'on_disconnected', 'args': None})
-                break
+                return
 
     def __init__(self, peer_radio, client_id: bytes, metainfo: MetaInfo):
         super(PeerRadioActor, self).__init__()
@@ -139,6 +140,7 @@ class PeerRadioActor(pykka.ThreadingActor):
                 self.on_disconnected()
                 return
 
+            self.sock.send(Unchock.get_bytes())
             self.sock.send(Interested.get_bytes())
 
         except:
@@ -162,11 +164,11 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.cleanup()
 
     def keep_alive(self):
-        print('keep_alive')
-        self.sock.send(KeepAlive.get_bytes())
+        self.send(KeepAlive.get_bytes())
 
     def request(self, index, begin, length):
         if not self.chock and 0 < length <= PeerRadioActor.BLOCK_SIZE:
+            # print('request', index, begin, length)
             return self.send(Request.get_bytes(index, begin, length))
         else:
             return False

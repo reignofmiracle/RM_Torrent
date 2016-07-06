@@ -13,8 +13,8 @@ ROOT_TORRENT_PATH = '../Resources/root.torrent'
 # PEER_IP = '192.168.0.5'
 # PEER_PORT = 51413
 
-PEER_IP = '109.229.161.139'
-PEER_PORT = 15737
+PEER_IP = '77.79.169.167'
+PEER_PORT = 20814
 
 
 class PeerRadioTest(unittest.TestCase):
@@ -45,7 +45,7 @@ class PeerRadioTest(unittest.TestCase):
         test_obj.subscribe(lambda msg: print(msg.get('id'), msg.get('payload')))
         test_obj.connect(self.peer_ip, self.peer_port)
 
-        time.sleep(30)
+        time.sleep(300)
 
         test_obj.stop()
 

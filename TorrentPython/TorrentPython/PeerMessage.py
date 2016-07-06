@@ -136,8 +136,7 @@ class Message(object):
 
 
 class KeepAlive(Message):
-    # MESSAGE = b'\x00\x00\x00\x00'
-    MESSAGE = b''
+    MESSAGE = b'\x00\x00\x00\x00'
 
     @staticmethod
     def get_bytes():
@@ -177,6 +176,10 @@ class Chock(Message):
 
 
 class Unchock(Message):
+    @staticmethod
+    def get_bytes():
+        return b'\x00\x00\x00\x01\x01'
+
     @staticmethod
     def create(buf: bytes):
         msg = Message.create(buf)

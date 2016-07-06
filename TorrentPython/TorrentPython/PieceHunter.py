@@ -2,7 +2,7 @@ from TorrentPython.PieceRadio import *
 
 
 class PieceHunterActor(pykka.ThreadingActor):
-    DEFAULT_REQUEST_ORDER_SIZE = 1
+    DEFAULT_REQUEST_ORDER_SIZE = 5
 
     def __init__(self, piece_hunter, hunting_scheduler, piece_assembler, client_id, metainfo, peer_ip, peer_port):
         super(PieceHunterActor, self).__init__()
@@ -83,7 +83,6 @@ class PieceHunterActor(pykka.ThreadingActor):
             order_list = self.hunting_scheduler.get_order_list(
                 self.bitfield_ext, self.request_order_size)
             if len(order_list) > 0:
-                print(order_list)
                 self.piece_radio.request(order_list)
             else:
                 self.piece_hunter.on_completed()

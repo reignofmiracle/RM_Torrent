@@ -15,8 +15,8 @@ from TorrentPython.PeerProvider import *
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROUTING_TABLE_PATH = '../Resources/routing_table.py'
 
-TRANSMISSION_IP = '192.168.0.5'
-TRANSMISSION_PORT = 51413
+PEER_IP = '77.79.169.167'
+PEER_PORT = 20814
 
 
 class PieceHunterTest(unittest.TestCase):
@@ -30,8 +30,8 @@ class PieceHunterTest(unittest.TestCase):
         self.piece_assembler = PieceAssembler(self.metainfo, self.dest_question)
         self.hunting_scheduler = HuntingScheduler(self.piece_assembler)
 
-        self.peer_ip = TRANSMISSION_IP
-        self.peer_port = TRANSMISSION_PORT
+        self.peer_ip = PEER_IP
+        self.peer_port = PEER_PORT
 
     def tearDown(self):
         self.hunting_scheduler.stop()
