@@ -41,7 +41,6 @@ class PieceHunterActor(pykka.ThreadingActor):
 
         elif msg.get('id') == 'disconnected':
             self.connected = False
-            self.piece_hunter.on_next(msg)
             self.piece_hunter.on_completed()
 
         elif msg.get('id') == 'unchock':
@@ -80,12 +79,13 @@ class PieceHunterActor(pykka.ThreadingActor):
 
     def download(self):
         if self.connected and self.bitfield_ext:
-            order_list = self.hunting_scheduler.get_order_list(
-                self.bitfield_ext, self.request_order_size)
-            if len(order_list) > 0:
-                self.piece_radio.request(order_list)
-            else:
-                self.piece_hunter.on_completed()
+            if not self.piece_radio.is_prepared():
+                order_list = self.hunting_scheduler.get_order_list(
+                    self.bitfield_ext, self.request_order_size)
+                if len(order_list) > 0:
+                    self.piece_radio.request(order_list)
+                else:
+                    self.piece_hunter.on_completed()
 
 
 class PieceHunter(Subject):

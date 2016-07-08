@@ -10,11 +10,11 @@ from TorrentPython.TorrentUtils import TorrentUtils
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-# PEER_IP = '192.168.0.5'
-# PEER_PORT = 51413
+PEER_IP = '192.168.10.12'
+PEER_PORT = 51413
 
-PEER_IP = '77.79.169.167'
-PEER_PORT = 20814
+# PEER_IP = '5.79.161.247'
+# PEER_PORT = 6881
 
 
 class PeerRadioTest(unittest.TestCase):
@@ -37,7 +37,7 @@ class PeerRadioTest(unittest.TestCase):
         self.assertIsNotNone(test_obj)
         test_obj.stop()
 
-    # @unittest.skip("clear")
+    @unittest.skip("clear")
     def test_connect(self):
         test_obj = PeerRadio.start(self.client_id, self.metainfo)
         self.assertIsNotNone(test_obj)
@@ -47,6 +47,26 @@ class PeerRadioTest(unittest.TestCase):
 
         time.sleep(300)
 
+        test_obj.stop()
+
+    # @unittest.skip("clear")
+    def test_disconnect(self):
+        test_obj = PeerRadio.start(self.client_id, self.metainfo)
+        self.assertIsNotNone(test_obj)
+
+        end_event = Event()
+
+        test_obj.subscribe(lambda msg: print(msg.get('id'), msg.get('payload')))
+        test_obj.subscribe(
+            lambda msg: test_obj.stop() if msg.get('id') == 'msg' and msg.get('payload').id == Message.UNCHOCK else None)
+        test_obj.subscribe(
+            lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
+        test_obj.subscribe(on_completed=lambda: end_event.set())
+        test_obj.subscribe(on_completed=lambda: print('on_completed'))
+
+        test_obj.connect(self.peer_ip, self.peer_port)
+
+        end_event.wait()
         test_obj.stop()
 
     @unittest.skip("clear")

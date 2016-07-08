@@ -4,7 +4,8 @@ from TorrentPython.PeerRadio import *
 
 
 class PieceRadioActor(pykka.ThreadingActor):
-    REQUEST_QUEUE_SIZE = 15
+    REQUEST_QUEUE_DEFAULT_SIZE = 5
+    REQUEST_QUEUE_EXPANSION_SIZE = 5
 
     def __init__(self, piece_radio, client_id: bytes, metainfo: MetaInfo):
         super(PieceRadioActor, self).__init__()
@@ -16,19 +17,24 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.peer_radio = PeerRadio.start(client_id, metainfo)
         self.peer_radio.subscribe(on_next=self.on_subscribe)
 
-        self.reconnection_count = 0
         self.chock = True  # reset at disconnected
 
+        self.peer_ip = None
+        self.peer_port = None
         self.piece_indices = None
         self.piece_orders = None
         self.piece_storage = None
+        self.request_queue_size = PieceRadioActor.REQUEST_QUEUE_DEFAULT_SIZE
         self.request_orders = None
         self.request_prepared = False
 
     def cleanup(self):
+        self.peer_ip = None
+        self.peer_port = None
         self.piece_indices = None
         self.piece_orders = None
         self.piece_storage = None
+        self.request_queue_size = PieceRadioActor.REQUEST_QUEUE_DEFAULT_SIZE
         self.request_orders = None
         self.request_prepared = False
 
@@ -82,10 +88,7 @@ class PieceRadioActor(pykka.ThreadingActor):
             self.piece_radio.on_next(msg)
 
         elif msg.get('id') == 'disconnected':
-            self.chock = True
-            if self.piece_storage:
-                self.piece_radio.on_next({'id': 'interrupted', 'payload': list(self.piece_storage.keys())})
-            self.piece_radio.on_next(msg)
+            self.on_disconnected(msg)
 
         elif msg.get('id') == 'msg':
             payload = msg.get('payload')
@@ -108,15 +111,28 @@ class PieceRadioActor(pykka.ThreadingActor):
             elif payload.id == Message.PIECE:
                 self.on_update(payload)
 
+    def on_disconnected(self, msg):
+        self.chock = True
+        self.piece_orders = self.request_orders + self.piece_orders
+        self.request_queue_size -= PieceRadioActor.REQUEST_QUEUE_EXPANSION_SIZE
+
+        if not self.peer_radio.connect(self.peer_ip, self.peer_port):
+            if self.piece_storage:
+                self.piece_radio.on_next({'id': 'interrupted', 'payload': list(self.piece_storage.keys())})
+            self.cleanup()
+            self.piece_radio.on_next(msg)
+
     def on_request(self):
         if self.chock is True or self.request_prepared is False:
-            return
+            return False
 
-        self.request_orders = self.piece_orders[:PieceRadioActor.REQUEST_QUEUE_SIZE]
-        self.piece_orders = self.piece_orders[PieceRadioActor.REQUEST_QUEUE_SIZE:]
+        self.request_orders = self.piece_orders[:self.request_queue_size]
+        self.piece_orders = self.piece_orders[self.request_queue_size:]
 
         for order in self.request_orders:
             self.peer_radio.request(*order)
+
+        return True
 
     def on_update(self, msg):
         order = (msg.index, msg.begin, len(msg.block))
@@ -139,16 +155,24 @@ class PieceRadioActor(pykka.ThreadingActor):
                 self.piece_radio.on_next({'id': 'completed', 'payload': None})
 
         if not self.request_orders and self.piece_orders:
+            self.request_queue_size += PieceRadioActor.REQUEST_QUEUE_EXPANSION_SIZE
             self.on_request()
 
+        return True
+
+    def is_prepared(self):
+        return self.request_prepared
+
     def connect(self, peer_ip, peer_port):
-        self.peer_radio.connect(peer_ip, peer_port)
+        self.peer_ip = peer_ip
+        self.peer_port = peer_port
+        return self.peer_radio.connect(peer_ip, peer_port)
 
     def disconnect(self):
-        self.peer_radio.disconnect()
+        return self.peer_radio.disconnect()
 
     def from_request(self, piece_indices: list):
-        if self.prepare_request(piece_indices) is True:
+        if self.prepare_request(piece_indices):
             self.on_request()
 
 
@@ -169,11 +193,14 @@ class PieceRadio(Subject):
         if self.actor.is_alive():
             self.actor.tell({'func': 'stop', 'args': None})
 
+    def is_prepared(self):
+        return self.actor.ask({'func': 'is_prepared', 'args': None})
+
     def connect(self, peer_ip, peer_port):
-        self.actor.tell({'func': 'connect', 'args':(peer_ip, peer_port)})
+        return self.actor.ask({'func': 'connect', 'args':(peer_ip, peer_port)})
 
     def disconnect(self):
-        self.actor.tell({'func': 'disconnect', 'args': None})
+        return self.actor.ask({'func': 'disconnect', 'args': None})
 
     def request(self, piece_indices: list):
         self.actor.tell({'func': 'from_request', 'args': (piece_indices,)})

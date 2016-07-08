@@ -25,11 +25,11 @@ class PeerProviderActor(pykka.ThreadingActor):
         return self.explorer.routing_table
 
     def get_peers(self, peer_size):
-        # peers = self.tracker_service.get_peers(peer_size)
-        # if len(peers) > 0:
-        #     return peers
-        #
-        # return self.explorer.explore(peer_size)
+        peers = self.tracker_service.get_peers(peer_size)
+        if len(peers) > 0:
+            return peers
+
+        return self.explorer.explore(peer_size)
         # time.sleep(3)
         # return [('192.168.10.12', 51413), ('192.168.10.2', 51413), ('192.168.10.4', 51413)]
         # return [('192.168.10.12', 51413), ('192.168.10.2', 51413)]
@@ -40,7 +40,7 @@ class PeerProviderActor(pykka.ThreadingActor):
         #         ('85.230.160.92', 61548),
         #         ('88.236.36.54', 64332)]
 
-        return [('77.79.169.167', 20814)]
+        # return [('77.79.169.167', 20814)]
 
 
 class PeerProvider(object):

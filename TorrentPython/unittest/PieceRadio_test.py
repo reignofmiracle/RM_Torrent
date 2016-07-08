@@ -13,8 +13,8 @@ from TorrentPython.TorrentUtils import *
 SAMPLE_TORRENT_PATH = '../Resources/sample.torrent'
 ROOT_TORRENT_PATH = '../Resources/root.torrent'
 
-# PEER_IP = '192.168.10.12'
-PEER_IP = '192.168.0.5'
+PEER_IP = '192.168.10.12'
+# PEER_IP = '192.168.0.5'
 PEER_PORT = 51413
 
 
@@ -50,14 +50,14 @@ class PieceRadioTest(unittest.TestCase):
 
         received_piece = []
 
-        def check_bitfield(msg):
-            if msg.get('id') == 'bitfield':
-                payload = msg.get('payload')
-                completed_piece_indices = payload.get_completed_piece_indices()
-                print(completed_piece_indices)
-                end_event.set()
-
-        test_obj.subscribe(check_bitfield)
+        # def check_bitfield(msg):
+        #     if msg.get('id') == 'bitfield':
+        #         payload = msg.get('payload')
+        #         completed_piece_indices = payload.get_completed_piece_indices()
+        #         print(completed_piece_indices)
+        #         end_event.set()
+        #
+        # test_obj.subscribe(check_bitfield)
 
         test_obj.subscribe(
             lambda msg: print('piece', msg.get('payload')[0]) if msg.get('id') == 'piece' else None)
@@ -74,7 +74,7 @@ class PieceRadioTest(unittest.TestCase):
         test_obj.subscribe(
             lambda msg: end_event.set() if msg.get('id') == 'disconnected' else None)
 
-        test_obj.connect(self.peer_ip, self.peer_port)
+        self.assertTrue(test_obj.connect(self.peer_ip, self.peer_port))
 
         # piece_indices = [i for i in range(0, metainfo.get_info().get_piece_num())]
         piece_indices = [0, 1, 2, 3, 4]

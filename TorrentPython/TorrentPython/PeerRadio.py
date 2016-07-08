@@ -13,21 +13,20 @@ from TorrentPython.PeerMessage import *
 
 
 class PeerRadioActor(pykka.ThreadingActor):
-    SOCKET_TIMEOUT = 10
+    SOCKET_TIMEOUT = 5
     KEEP_ALIVE_TIMEOUT = 60
     BLOCK_SIZE = 2 ** 14
     BUFFER_SIZE = BLOCK_SIZE + 13  # 4 + 1 + 4 + 4
 
     @staticmethod
     def recv_main(peer_radio_actor):
-        while True:
+        while peer_radio_actor.connected:
             try:
                 peer_radio_actor.on_update(peer_radio_actor.recv(PeerRadioActor.BUFFER_SIZE))
             except socket.timeout:
                 pass
             except Exception as e:
-                print(e)
-                print(peer_radio_actor.sock)
+                print(e, peer_radio_actor.sock)
                 if peer_radio_actor.actor_ref.is_alive():
                     peer_radio_actor.actor_ref.tell({'func': 'on_disconnected', 'args': None})
                 return
@@ -39,26 +38,26 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.metainfo = metainfo
         self.info = self.metainfo.get_info()
 
+        self.connected = False
+
         self.sock = None
         self.recv_main_thread = None
         self.keep_alive_subscription = None
 
-        self.connected = False
         self.remain = b''
         self.chock = True
 
     def cleanup(self):
-        if self.keep_alive_subscription:
-            self.keep_alive_subscription.dispose()
-            self.keep_alive_subscription = None
-
-        self.recv_main_thread = None
-
         if self.sock:
             self.sock.close()
             self.sock = None
 
-        self.connected = False
+        self.recv_main_thread = None
+
+        if self.keep_alive_subscription:
+            self.keep_alive_subscription.dispose()
+            self.keep_alive_subscription = None
+
         self.remain = b''
         self.chock = True
 
@@ -73,8 +72,7 @@ class PeerRadioActor(pykka.ThreadingActor):
             return False
 
     def on_stop(self):
-        self.cleanup()
-        self.peer_radio.on_next({'id': 'disconnected', 'payload': None})
+        self.disconnect()
         self.peer_radio.on_completed()
 
     def on_receive(self, message):
@@ -83,6 +81,7 @@ class PeerRadioActor(pykka.ThreadingActor):
         return func(*args) if args else func()
 
     def on_disconnected(self):
+        self.connected = False
         self.cleanup()
         self.peer_radio.on_next({'id': 'disconnected', 'payload': None})
 
@@ -101,6 +100,7 @@ class PeerRadioActor(pykka.ThreadingActor):
         print(msg)
 
         if msg.id == Message.CHOCK:
+            print(msg, self.sock)
             self.chock = True
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
 
@@ -117,16 +117,20 @@ class PeerRadioActor(pykka.ThreadingActor):
         elif msg.id == Message.PIECE:
             # print('piece', msg.index, msg.begin, len(msg.block))
             self.peer_radio.on_next({'id': 'msg', 'payload': msg})
+        else:
+            print(msg, self.sock)
+
+    def is_connected(self):
+        return self.connected
 
     def connect(self, peer_ip, peer_port):
         if self.connected:
-            self.peer_radio.on_next({'id': 'connected', 'payload': None})
-            return
+            return False
 
         handshake = Handshake.get_bytes(self.metainfo.info_hash, self.client_id)
         if handshake is None:
             self.on_disconnected()
-            return
+            return False
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -138,30 +142,40 @@ class PeerRadioActor(pykka.ThreadingActor):
             msg = Handshake.create(received)
             if msg is None or msg.info_hash != self.metainfo.info_hash:
                 self.on_disconnected()
-                return
+                return False
 
-            self.sock.send(Unchock.get_bytes())
             self.sock.send(Interested.get_bytes())
 
         except:
             self.on_disconnected()
-            return
+            return False
 
-        self.keep_alive_subscription = Observable.interval(
-            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(self.tell_keep_alive)
+        self.connected = True
 
         self.recv_main_thread = Thread(target=PeerRadioActor.recv_main, args=(self,))
         self.recv_main_thread.daemon = True
         self.recv_main_thread.start()
 
-        self.connected = True
+        def report_keep_alive(_):
+            self.actor_ref.tell({'func': 'keep_alive', 'args': None})
+
+        self.keep_alive_subscription = Observable.interval(
+            PeerRadioActor.KEEP_ALIVE_TIMEOUT * 1000).subscribe(report_keep_alive)
+
         self.peer_radio.on_next({'id': 'connected', 'payload': None})
 
-    def tell_keep_alive(self, _):
-        self.actor_ref.tell({'func': 'keep_alive', 'args': None})
+        return True
 
     def disconnect(self):
+        if not self.connected:
+            return False
+
+        self.connected = False
+        self.recv_main_thread.join(PeerRadioActor.SOCKET_TIMEOUT * 2)
         self.cleanup()
+        self.peer_radio.on_next({'id': 'disconnected', 'payload': None})
+
+        return True
 
     def keep_alive(self):
         self.send(KeepAlive.get_bytes())
@@ -194,14 +208,17 @@ class PeerRadio(Subject):
         if self.actor.is_alive():
             self.actor.tell({'func': 'stop', 'args': None})
 
+    def is_connected(self):
+        return self.actor.ask({'func': 'is_connected', 'args': None})
+
     def connect(self, peer_ip, peer_port):
-        self.actor.tell({'func': 'connect', 'args': (peer_ip, peer_port)})
+        return self.actor.ask({'func': 'connect', 'args': (peer_ip, peer_port)})
 
     def disconnect(self):
-        self.actor.tell({'func': 'disconnect', 'args': None})
+        return self.actor.ask({'func': 'disconnect', 'args': None})
 
     def request(self, index, begin, length):
-        self.actor.tell({'func': 'request', 'args': (index, begin, length)})
+        return self.actor.ask({'func': 'request', 'args': (index, begin, length)})
 
     def have(self, index):
-        self.actor.tell({'func': 'have', 'args': (index, )})
+        return self.actor.ask({'func': 'have', 'args': (index, )})
