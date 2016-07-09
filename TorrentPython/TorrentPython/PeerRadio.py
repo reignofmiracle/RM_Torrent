@@ -97,7 +97,7 @@ class PeerRadioActor(pykka.ThreadingActor):
         self.remain = buf
 
     def on_next(self, msg):
-        print(msg)
+        # print(msg)
 
         if msg.id == Message.CHOCK:
             print(msg, self.sock)

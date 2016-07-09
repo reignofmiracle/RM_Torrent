@@ -79,7 +79,7 @@ class PieceHunterActor(pykka.ThreadingActor):
 
     def download(self):
         if self.connected and self.bitfield_ext:
-            if not self.piece_radio.is_prepared():
+            if self.piece_radio.is_prepared() is False:
                 order_list = self.hunting_scheduler.get_order_list(
                     self.bitfield_ext, self.request_order_size)
                 if len(order_list) > 0:

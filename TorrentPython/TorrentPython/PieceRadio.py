@@ -6,6 +6,7 @@ from TorrentPython.PeerRadio import *
 class PieceRadioActor(pykka.ThreadingActor):
     REQUEST_QUEUE_DEFAULT_SIZE = 5
     REQUEST_QUEUE_EXPANSION_SIZE = 5
+    REQUEST_AGAIN_TIMEOUT = 20
 
     def __init__(self, piece_radio, client_id: bytes, metainfo: MetaInfo):
         super(PieceRadioActor, self).__init__()
@@ -19,6 +20,7 @@ class PieceRadioActor(pykka.ThreadingActor):
 
         self.chock = True  # reset at disconnected
 
+        self.request_again_timer = None
         self.peer_ip = None
         self.peer_port = None
         self.piece_indices = None
@@ -29,6 +31,9 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.request_prepared = False
 
     def cleanup(self):
+        if self.request_again_timer:
+            self.request_again_timer.cancel()
+
         self.peer_ip = None
         self.peer_port = None
         self.piece_indices = None
@@ -116,11 +121,14 @@ class PieceRadioActor(pykka.ThreadingActor):
         self.piece_orders = self.request_orders + self.piece_orders
         self.request_queue_size -= PieceRadioActor.REQUEST_QUEUE_EXPANSION_SIZE
 
-        if not self.peer_radio.connect(self.peer_ip, self.peer_port):
-            if self.piece_storage:
-                self.piece_radio.on_next({'id': 'interrupted', 'payload': list(self.piece_storage.keys())})
-            self.cleanup()
-            self.piece_radio.on_next(msg)
+        if self.request_queue_size > 0:
+            if self.peer_radio.connect(self.peer_ip, self.peer_port):
+                return
+
+        if self.piece_storage:
+            self.piece_radio.on_next({'id': 'interrupted', 'payload': list(self.piece_storage.keys())})
+        self.cleanup()
+        self.piece_radio.on_next(msg)
 
     def on_request(self):
         if self.chock is True or self.request_prepared is False:
@@ -131,6 +139,8 @@ class PieceRadioActor(pykka.ThreadingActor):
 
         for order in self.request_orders:
             self.peer_radio.request(*order)
+
+        self.start_request_again_timer()
 
         return True
 
@@ -151,6 +161,8 @@ class PieceRadioActor(pykka.ThreadingActor):
             self.peer_radio.have(msg.index)
 
             if len(self.piece_storage) == 0:
+                if self.request_again_timer:
+                    self.request_again_timer.cancel()
                 self.cleanup()
                 self.piece_radio.on_next({'id': 'completed', 'payload': None})
 
@@ -158,7 +170,22 @@ class PieceRadioActor(pykka.ThreadingActor):
             self.request_queue_size += PieceRadioActor.REQUEST_QUEUE_EXPANSION_SIZE
             self.on_request()
 
+        self.start_request_again_timer()
+
         return True
+
+    def start_request_again_timer(self):
+        if self.request_again_timer:
+            self.request_again_timer.cancel()
+
+        self.request_again_timer = threading.Timer(
+            PieceRadioActor.REQUEST_AGAIN_TIMEOUT,
+            lambda: self.actor_ref.tell({'func': 'request_again', 'args': None}))
+        self.request_again_timer.start()
+
+    def request_again(self):
+        self.piece_orders = self.request_orders + self.piece_orders
+        self.on_request()
 
     def is_prepared(self):
         return self.request_prepared
